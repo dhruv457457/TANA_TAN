@@ -56,6 +56,18 @@ function extractRisk(text: string): "safe" | "balanced" | "degen" {
   return "balanced";
 }
 
+function extractMaxVaults(text: string): number | undefined {
+  const lower = text.toLowerCase();
+  const singlePhrases = [
+    "1 vault", "one vault", "single vault", "all in one", "everything in one",
+    "1 pool", "one pool", "just one", "only one", "put it all",
+  ];
+  if (singlePhrases.some((p) => lower.includes(p))) return 1;
+  // "2 vaults", "two vaults"
+  if (/\b(2|two)\s+vault/.test(lower) || /\b(2|two)\s+pool/.test(lower)) return 2;
+  return undefined;
+}
+
 function extractMinApy(text: string): number {
   const match = text.match(/(\d+(?:\.\d+)?)\s*%/);
   if (match) return parseFloat(match[1]) / 100;
@@ -70,6 +82,7 @@ export function parseIntentHeuristic(text: string): ParsedIntent {
     riskTolerance: extractRisk(text),
     minApy: extractMinApy(text),
     chainIds: extractChainIds(text),
+    maxVaults: extractMaxVaults(text),
     raw: text,
   };
 }

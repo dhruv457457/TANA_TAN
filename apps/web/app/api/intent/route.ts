@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
 - riskTolerance: "safe"|"balanced"|"degen"
 - minApy: number 0-1 (e.g. 0.05 for 5%)
 - chainIds: number[] or null (EVM chain IDs mentioned: Base=8453, Ethereum=1, Arbitrum=42161, Optimism=10, Polygon=137. null if no specific chain mentioned)
+- maxVaults: number or null (1 if user says "1 vault"/"one vault"/"single vault"/"all in one"/"put everything in one", 2 if "2 vaults", null otherwise)
 No markdown, no explanation. Message: "${message}"`,
             },
           ],
@@ -55,6 +56,7 @@ No markdown, no explanation. Message: "${message}"`,
             chainIds: (Array.isArray(parsed.chainIds) && parsed.chainIds.length > 0)
               ? parsed.chainIds
               : heuristic.chainIds,
+            maxVaults: parsed.maxVaults ?? heuristic.maxVaults,
             raw: message,
           };
           return NextResponse.json(intent);

@@ -13,7 +13,7 @@ export const wagmiConfig = getDefaultConfig({
     [arbitrum.id]: http("https://arb1.arbitrum.io/rpc"),
     [optimism.id]: http("https://mainnet.optimism.io"),
     [polygon.id]: http("https://polygon-rpc.com"),
-    [mainnet.id]: http("https://cloudflare-eth.com"),
+    [mainnet.id]: http("https://eth.llamarpc.com"),
   },
   ssr: true,
 });

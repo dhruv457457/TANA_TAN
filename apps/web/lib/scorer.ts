@@ -52,8 +52,11 @@ export function filterByRisk(
 export function allocate(
   vaults: Vault[],
   amount: number,
-  tolerance: "safe" | "balanced" | "degen"
+  tolerance: "safe" | "balanced" | "degen",
+  maxVaults = 3
 ): { vault: Vault; percentage: number; amount: number }[] {
+  const limit = Math.max(1, Math.min(maxVaults, 3));
+
   const candidates = filterByRisk(vaults, tolerance)
     .filter((v) => v.apy.total > 0)
     .sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0));
@@ -65,7 +68,7 @@ export function allocate(
 
   // First pass: one per protocol
   for (const v of candidates) {
-    if (picked.length >= 3) break;
+    if (picked.length >= limit) break;
     const key = v.protocol.toLowerCase();
     if (!seenProtocols.has(key) && !seenAddresses.has(v.address)) {
       picked.push(v);
@@ -76,7 +79,7 @@ export function allocate(
 
   // Second pass: fill remaining slots with best remaining (different address)
   for (const v of candidates) {
-    if (picked.length >= 3) break;
+    if (picked.length >= limit) break;
     if (!seenAddresses.has(v.address)) {
       picked.push(v);
       seenAddresses.add(v.address);
@@ -85,12 +88,12 @@ export function allocate(
 
   if (picked.length === 0) return [];
 
-  const weights =
-    picked.length === 1
-      ? [1]
-      : picked.length === 2
-      ? [0.6, 0.4]
-      : [0.5, 0.3, 0.2];
+  const WEIGHT_TABLE: Record<number, number[]> = {
+    1: [1],
+    2: [0.6, 0.4],
+    3: [0.5, 0.3, 0.2],
+  };
+  const weights = WEIGHT_TABLE[picked.length] ?? [1];
 
   return picked.map((vault, i) => ({
     vault,

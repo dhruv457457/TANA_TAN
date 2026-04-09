@@ -37,6 +37,7 @@ export interface ParsedIntent {
   minApy: number;
   chains?: string[];
   chainIds?: number[]; // explicit chain filter from user
+  maxVaults?: number; // 1 = single-vault mode
   raw: string;
 }
 

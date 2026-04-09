@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx tsc:*)",
+      "Bash(echo \"EXIT:$?\")",
+      "Bash(curl -s \"https://earn.li.fi/v1/earn/vaults?chainId=8453&sortBy=apy\")",
+      "Bash(python3 -c \" import json, sys data = json.load\\(sys.stdin\\) vaults = data if isinstance\\(data, list\\) else data.get\\('vaults', data.get\\('data', []\\)\\) for v in vaults[:30]: name = v.get\\('name',''\\) addr = v.get\\('address',''\\) proto = v.get\\('protocolName', v.get\\('protocol',''\\)\\) print\\(f'{proto} | {name} | {addr}'\\) \")",
+      "Bash(curl -s \"https://earn.li.fi/v1/earn/vaults?chainId=8453\")",
+      "Bash(python3 -c \" import json, sys data = json.load\\(sys.stdin\\) vaults = data.get\\('data', []\\) for v in vaults: name = v.get\\('name',''\\) addr = v.get\\('address',''\\) proto = v.get\\('protocol',{}\\).get\\('name',''\\) if 'steak' in name.lower\\(\\) or 'steak' in proto.lower\\(\\): apy = v.get\\('analytics',{}\\).get\\('apy',{}\\).get\\('total',0\\) print\\(f'{proto} | {name} | {addr} | APY:{apy}'\\) \")",
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); vaults=data.get\\('data',[]\\); [print\\(v.get\\('protocol',{}\\).get\\('name',''\\)+'|'+v.get\\('name',''\\)+'|'+v.get\\('address',''\\)\\) for v in vaults if 'steak' in v.get\\('name',''\\).lower\\(\\)]\")"
+    ]
+  }
+}

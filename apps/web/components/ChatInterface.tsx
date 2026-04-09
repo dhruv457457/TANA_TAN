@@ -109,7 +109,7 @@ export function ChatInterface() {
           : vaults.filter((v) => v.asset.toUpperCase() === intent.asset.toUpperCase());
         const scored = scoreAndLabelVaults(pool);
 
-        const plans = allocate(scored, intent.amount, intent.riskTolerance);
+        const plans = allocate(scored, intent.amount, intent.riskTolerance, intent.maxVaults);
         setAllocations(plans);
 
         const riskMap = { safe: "🟢 Safe", balanced: "🟡 Balanced", degen: "🔴 Degen" };
@@ -118,9 +118,12 @@ export function ChatInterface() {
             ? plans.reduce((s, p) => s + p.vault.apy.total * p.percentage, 0) * 100
             : 0;
 
+        const isSingleVault = intent.maxVaults === 1;
         const replyContent =
           plans.length === 0
             ? `No ${intent.asset} vaults found matching your criteria (min APY ${(intent.minApy * 100).toFixed(1)}%, risk: ${intent.riskTolerance}). Try adjusting your requirements.`
+            : isSingleVault
+            ? `Going all-in on the best vault for $${intent.amount.toLocaleString()} ${intent.asset} — ${riskMap[intent.riskTolerance]} strategy.\n\nAPY: ~${avgApy.toFixed(2)}%\n\nHere's your vault:`
             : `Found ${plans.length} vault${plans.length > 1 ? "s" : ""} for $${intent.amount.toLocaleString()} ${intent.asset} — ${riskMap[intent.riskTolerance]} strategy.\n\nWeighted APY: ~${avgApy.toFixed(2)}%\n\nHere's your optimized allocation:`;
 
         const assistantMsg: ChatMessage = {
