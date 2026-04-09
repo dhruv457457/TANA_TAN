@@ -58,8 +58,9 @@ export function PortfolioDashboard({ address }: Props) {
 
   if (error || !positions || positions.length === 0) {
     return (
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-white/40 text-sm">
-        No active positions found
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-center text-white/40 text-xs space-y-1">
+        <p>No positions found</p>
+        <p className="text-white/20">Positions index every ~15 min</p>
       </div>
     );
   }

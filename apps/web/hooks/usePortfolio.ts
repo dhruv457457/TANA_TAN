@@ -13,7 +13,9 @@ export function usePortfolio(address?: string | null) {
     queryKey: ["portfolio", address],
     queryFn: () => fetchPortfolio(address!),
     enabled: !!address,
-    staleTime: 30_000,
+    staleTime: 5 * 60_000,  // 5 minutes — don't refetch on every render
+    gcTime: 10 * 60_000,    // keep in cache for 10 minutes
     retry: 1,
+    refetchOnWindowFocus: false,
   });
 }

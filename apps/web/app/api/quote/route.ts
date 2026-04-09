@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import type { ComposerQuote } from "@/types";
 
 const LIFI_API_KEY = process.env.LIFI_API_KEY ?? "";
 const COMPOSER_BASE = "https://li.quest";
@@ -7,70 +6,46 @@ const COMPOSER_BASE = "https://li.quest";
 export async function POST(request: NextRequest) {
   const body = await request.json();
   const {
-    fromChainId,
-    toChainId,
-    fromTokenAddress,
-    toTokenAddress,
+    fromChain,
+    toChain,
+    fromToken,
+    toToken,   // vault contract address
     fromAmount,
     fromAddress,
   } = body;
 
-  if (!fromChainId || !toChainId || !fromTokenAddress || !fromAmount) {
+  if (!fromChain || !toChain || !fromToken || !toToken || !fromAmount || !fromAddress) {
     return NextResponse.json({ error: "Missing required params" }, { status: 400 });
   }
 
+  // Composer uses GET /v1/quote with the vault address as toToken
   const params = new URLSearchParams({
-    fromChainId: String(fromChainId),
-    toChainId: String(toChainId),
-    fromTokenAddress,
-    toTokenAddress,
-    fromAmount,
-    fromAddress: fromAddress ?? "0x0000000000000000000000000000000000000001",
-    toAddress: fromAddress ?? "0x0000000000000000000000000000000000000001",
+    fromChain: String(fromChain),
+    toChain: String(toChain),
+    fromToken,
+    toToken,
+    fromAddress,
+    toAddress: fromAddress,
+    fromAmount: String(fromAmount),
     integrator: "tana-tan",
   });
 
   try {
-    const res = await fetch(`${COMPOSER_BASE}/v1/quote?${params}`, {
-      headers: LIFI_API_KEY ? { "x-lifi-api-key": LIFI_API_KEY } : {},
-    });
+    const headers: Record<string, string> = {};
+    if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY;
+
+    const res = await fetch(`${COMPOSER_BASE}/v1/quote?${params}`, { headers });
+    const json = await res.json();
 
     if (!res.ok) {
-      return NextResponse.json(getMockQuote(fromChainId, toChainId));
+      console.error("Composer quote error:", res.status, json);
+      // Return null so client knows it's a mock
+      return NextResponse.json({ mock: true, error: json?.message ?? "Quote failed" });
     }
 
-    const quote: ComposerQuote = await res.json();
-    return NextResponse.json(quote);
-  } catch {
-    return NextResponse.json(getMockQuote(fromChainId, toChainId));
+    return NextResponse.json(json);
+  } catch (e) {
+    console.error("Composer fetch failed:", e);
+    return NextResponse.json({ mock: true, error: "Network error" });
   }
-}
-
-function getMockQuote(fromChainId: number, toChainId: number): ComposerQuote {
-  return {
-    id: `mock-${Date.now()}`,
-    fromChainId,
-    toChainId,
-    fromToken: "USDC",
-    toToken: "USDC",
-    fromAmount: "500000000",
-    toAmount: "498000000",
-    steps: [
-      {
-        type: "cross",
-        tool: "stargate",
-        toolDetails: { name: "Stargate" },
-        action: {
-          fromChainId,
-          toChainId,
-          fromToken: { symbol: "USDC" },
-          toToken: { symbol: "USDC" },
-        },
-      },
-    ],
-    estimate: {
-      executionDuration: 180,
-      gasCosts: [{ amountUsd: "1.20" }],
-    },
-  };
 }

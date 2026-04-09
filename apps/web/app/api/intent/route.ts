@@ -27,7 +27,13 @@ export async function POST(request: NextRequest) {
           messages: [
             {
               role: "user",
-              content: `Extract yield intent from this message. Return ONLY valid JSON with keys: asset (string, e.g. "USDC"), amount (number), riskTolerance ("safe"|"balanced"|"degen"), minApy (number 0-1, e.g. 0.05 for 5%). No markdown, no explanation. Message: "${message}"`,
+              content: `Extract yield intent from this message. Return ONLY valid JSON with these keys:
+- asset: string (e.g. "USDC", "ETH")
+- amount: number (USD value)
+- riskTolerance: "safe"|"balanced"|"degen"
+- minApy: number 0-1 (e.g. 0.05 for 5%)
+- chainIds: number[] or null (EVM chain IDs mentioned: Base=8453, Ethereum=1, Arbitrum=42161, Optimism=10, Polygon=137. null if no specific chain mentioned)
+No markdown, no explanation. Message: "${message}"`,
             },
           ],
         }),
@@ -39,11 +45,16 @@ export async function POST(request: NextRequest) {
         const jsonMatch = text.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           const parsed = JSON.parse(jsonMatch[0]);
+          // Also run heuristic to catch chain mentions AI might miss
+          const heuristic = parseIntentHeuristic(message);
           const intent: ParsedIntent = {
             asset: parsed.asset ?? "USDC",
             amount: Number(parsed.amount) || 100,
             riskTolerance: parsed.riskTolerance ?? "balanced",
             minApy: Number(parsed.minApy) || 0.03,
+            chainIds: (Array.isArray(parsed.chainIds) && parsed.chainIds.length > 0)
+              ? parsed.chainIds
+              : heuristic.chainIds,
             raw: message,
           };
           return NextResponse.json(intent);

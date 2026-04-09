@@ -16,6 +16,7 @@ export interface Vault {
   chainId: number;
   chainName: string;
   protocol: string;
+  protocolLogoUri?: string;
   name: string;
   asset: string;
   assetAddress: string;
@@ -23,6 +24,8 @@ export interface Vault {
   tvl: VaultTvl;
   timeLock: number;
   tags: string[];
+  isTransactional?: boolean;
+  isRedeemable?: boolean;
   riskScore?: number;
   riskLabel?: "Safe" | "Balanced" | "Degen";
 }
@@ -33,6 +36,7 @@ export interface ParsedIntent {
   riskTolerance: "safe" | "balanced" | "degen";
   minApy: number;
   chains?: string[];
+  chainIds?: number[]; // explicit chain filter from user
   raw: string;
 }
 

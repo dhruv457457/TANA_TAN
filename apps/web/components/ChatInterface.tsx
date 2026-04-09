@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { useChainId } from "wagmi";
 import { useVaults } from "@/hooks/useVaults";
 import { useTanaStore } from "@/store";
 import { parseIntent } from "@/lib/intent";
@@ -53,6 +54,7 @@ export function ChatInterface() {
     currentIntent,
   } = useTanaStore();
 
+  const currentChainId = useChainId();
   const { data: allVaults } = useVaults();
 
   useEffect(() => {
@@ -78,15 +80,34 @@ export function ChatInterface() {
         const intent = await parseIntent(text);
         setIntent(intent);
 
-        // Score and filter vaults
-        const vaults = allVaults ?? [];
-        const scored = scoreAndLabelVaults(
-          vaults.filter(
-            (v) =>
-              v.asset.toUpperCase() === intent.asset.toUpperCase() &&
-              v.apy.total >= intent.minApy
-          )
-        );
+        const SUPPORTED_CHAINS = new Set([1, 8453, 42161, 10, 137]);
+
+        // Determine target chain: user-mentioned chain, or their wallet chain
+        const targetChainId = (intent.chainIds && intent.chainIds.length > 0)
+          ? intent.chainIds[0]
+          : currentChainId;
+
+        const effectiveChain = SUPPORTED_CHAINS.has(targetChainId) ? targetChainId : currentChainId;
+
+        // If the target chain differs from what we have cached, fetch fresh
+        let vaults = (allVaults ?? []).filter((v) => v.chainId === effectiveChain);
+        if (vaults.length === 0) {
+          const params = new URLSearchParams({ sortBy: "apy", chainId: String(effectiveChain) });
+          const res = await fetch(`/api/vaults?${params}`);
+          if (res.ok) vaults = await res.json();
+        }
+
+        // Filter by asset + APY, cap extreme APYs to avoid flash-loan noise
+        const filtered = vaults.filter((v) => {
+          const assetMatch = v.asset.toUpperCase() === intent.asset.toUpperCase();
+          const apyCapped = Math.min(v.apy.total, 2.0);
+          return assetMatch && apyCapped >= intent.minApy;
+        });
+        // Fall back to asset match only if APY filter is too strict
+        const pool = filtered.length > 0
+          ? filtered
+          : vaults.filter((v) => v.asset.toUpperCase() === intent.asset.toUpperCase());
+        const scored = scoreAndLabelVaults(pool);
 
         const plans = allocate(scored, intent.amount, intent.riskTolerance);
         setAllocations(plans);
@@ -176,7 +197,6 @@ export function ChatInterface() {
                       key={plan.vault.address}
                       plan={plan}
                       index={i}
-                      onExecute={() => setShowRouteMap(true)}
                     />
                   ))}
                   <button

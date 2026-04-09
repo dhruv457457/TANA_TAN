@@ -3,10 +3,13 @@ import { ChatInterface } from "@/components/ChatInterface";
 import { PortfolioDashboard } from "@/components/PortfolioDashboard";
 import { ConnectButton } from "@/components/ConnectButton";
 import { useTanaStore } from "@/store";
+import { useAccount } from "wagmi";
 import Link from "next/link";
 
 export default function Home() {
-  const walletAddress = useTanaStore((s) => s.walletAddress);
+  const { address } = useAccount();
+  const storeAddress = useTanaStore((s) => s.walletAddress);
+  const walletAddress = address ?? storeAddress;
   return (
     <div className="flex flex-col h-full min-h-screen bg-black">
       {/* Background gradient mesh */}

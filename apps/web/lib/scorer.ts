@@ -7,11 +7,13 @@ function normalize(value: number, min: number, max: number): number {
 
 export function scoreVault(vault: Vault): number {
   const apy = vault.apy;
-  const apy30d = apy.apy30d ?? apy.total;
+  // Cap extreme APYs (flash loans, data anomalies) at 200%
+  const total = Math.min(apy.total, 2.0);
+  const apy30d = Math.min(apy.apy30d ?? apy.total, 2.0);
 
   // Stability: how consistent APY is over 30d
   const stabilityScore =
-    apy30d > 0 ? 1 - Math.min(1, Math.abs(apy.total - apy30d) / apy30d) : 0.5;
+    apy30d > 0 ? 1 - Math.min(1, Math.abs(total - apy30d) / apy30d) : 0.5;
 
   // TVL score: normalize up to $50M
   const tvlScore = normalize(vault.tvl?.usd ?? 0, 0, 50_000_000);
@@ -52,21 +54,45 @@ export function allocate(
   amount: number,
   tolerance: "safe" | "balanced" | "degen"
 ): { vault: Vault; percentage: number; amount: number }[] {
-  const filtered = filterByRisk(vaults, tolerance)
+  const candidates = filterByRisk(vaults, tolerance)
     .filter((v) => v.apy.total > 0)
-    .sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0))
-    .slice(0, 3);
+    .sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0));
 
-  if (filtered.length === 0) return [];
+  // Pick diverse vaults: prefer different protocols, then different addresses
+  const picked: Vault[] = [];
+  const seenProtocols = new Set<string>();
+  const seenAddresses = new Set<string>();
+
+  // First pass: one per protocol
+  for (const v of candidates) {
+    if (picked.length >= 3) break;
+    const key = v.protocol.toLowerCase();
+    if (!seenProtocols.has(key) && !seenAddresses.has(v.address)) {
+      picked.push(v);
+      seenProtocols.add(key);
+      seenAddresses.add(v.address);
+    }
+  }
+
+  // Second pass: fill remaining slots with best remaining (different address)
+  for (const v of candidates) {
+    if (picked.length >= 3) break;
+    if (!seenAddresses.has(v.address)) {
+      picked.push(v);
+      seenAddresses.add(v.address);
+    }
+  }
+
+  if (picked.length === 0) return [];
 
   const weights =
-    filtered.length === 1
+    picked.length === 1
       ? [1]
-      : filtered.length === 2
+      : picked.length === 2
       ? [0.6, 0.4]
       : [0.5, 0.3, 0.2];
 
-  return filtered.map((vault, i) => ({
+  return picked.map((vault, i) => ({
     vault,
     percentage: weights[i],
     amount: Math.round(amount * weights[i] * 100) / 100,
