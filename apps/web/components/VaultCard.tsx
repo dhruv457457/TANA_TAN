@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useAccount } from "wagmi";
 import { useTanaStore } from "@/store";
 import { useExecute } from "@/hooks/useExecute";
+import { PostStrategyModal } from "@/components/PostStrategyModal";
 import type { AllocationPlan } from "@/types";
 
 const RISK_COLORS = {
@@ -49,6 +50,7 @@ export function VaultCard({ plan, index }: VaultCardProps) {
   const { address } = useAccount();
   const isConnected = !!(walletAddress || address);
   const [showRoute, setShowRoute] = useState(false);
+  const [showPostModal, setShowPostModal] = useState(false);
 
   const { execute, status, txHash, error, reset } = useExecute();
   const isIdle = status === "idle" || status === "error";
@@ -152,6 +154,12 @@ export function VaultCard({ plan, index }: VaultCardProps) {
             >
               {showRoute ? "Hide" : "Show"} execution route →
             </button>
+            <button
+              onClick={() => setShowPostModal(true)}
+              className="w-full py-1.5 rounded-xl text-xs text-indigo-400 hover:text-indigo-300 border border-indigo-500/20 hover:border-indigo-500/40 transition-colors"
+            >
+              Share to Feed →
+            </button>
             <button onClick={reset} className="w-full py-1 text-xs text-white/30 hover:text-white/50 transition-colors">
               Execute again
             </button>
@@ -220,6 +228,14 @@ export function VaultCard({ plan, index }: VaultCardProps) {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {showPostModal && (
+        <PostStrategyModal
+          plan={plan}
+          onClose={() => setShowPostModal(false)}
+          onPosted={() => setShowPostModal(false)}
+        />
+      )}
     </motion.div>
   );
 }

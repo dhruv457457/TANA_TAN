@@ -34,10 +34,10 @@ export default function Home() {
           </span>
         </div>
         <div className="flex items-center gap-4">
-          <Link
-            href="/dashboard"
-            className="text-sm text-white/50 hover:text-white/90 transition-colors"
-          >
+          <Link href="/feed" className="text-sm text-white/50 hover:text-white/90 transition-colors">
+            Feed
+          </Link>
+          <Link href="/dashboard" className="text-sm text-white/50 hover:text-white/90 transition-colors">
             Dashboard
           </Link>
           <ConnectButton />
