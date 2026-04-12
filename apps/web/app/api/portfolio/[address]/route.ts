@@ -21,6 +21,21 @@ const CHAIN_NAMES: Record<number, string> = {
   1: "Ethereum", 8453: "Base", 42161: "Arbitrum", 10: "Optimism", 137: "Polygon",
 };
 
+// LI.FI Earn API vault detail endpoint uses network name, not chainId
+const CHAIN_ID_TO_NETWORK: Record<number, string> = {
+  1: "Ethereum",
+  8453: "Base",
+  42161: "Arbitrum",
+  10: "Optimism",
+  137: "Polygon",
+  43114: "Avalanche",
+  56: "BNB Chain",
+  100: "Gnosis Chain",
+  534352: "Scroll",
+  59144: "Linea",
+  5000: "Mantle",
+};
+
 const BALANCE_OF_ABI = [
   { name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
 ] as const;
@@ -161,8 +176,9 @@ async function fetchOnChainPositions(walletAddress: string): Promise<PortfolioPo
     await Promise.allSettled(
       positions.map(async (pos) => {
         try {
+          const network = CHAIN_ID_TO_NETWORK[pos.chainId] ?? String(pos.chainId);
           const res = await fetch(
-            `${EARN_BASE}/v1/earn/vaults/${pos.chainId}/${pos.vaultAddress}`,
+            `${EARN_BASE}/v1/earn/vaults/${network}/${pos.vaultAddress}`,
             { headers }
           );
           if (res.ok) {

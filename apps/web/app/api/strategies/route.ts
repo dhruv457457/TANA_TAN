@@ -23,7 +23,13 @@ export async function GET(req: NextRequest) {
 
 // POST /api/strategies — create a new strategy post
 export async function POST(req: NextRequest) {
-  await connectDB();
+  const conn = await connectDB();
+  // Drop stale unique index on strategyId (removed from schema but still in DB)
+  try {
+    const col = conn.connection.collection("strategies");
+    await col.dropIndex("strategyId_1");
+  } catch { /* index doesn't exist — fine */ }
+
   const body = await req.json();
   const {
     author, vaultAddress, chainId, protocol, chainName,

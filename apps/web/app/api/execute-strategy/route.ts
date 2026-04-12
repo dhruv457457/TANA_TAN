@@ -70,12 +70,24 @@ export async function POST(req: NextRequest) {
   }
 
   await connectDB();
-  const { strategyId } = await req.json();
+  const text = await req.text();
+  let body;
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON", received: text }, { status: 400 });
+  }
+  const { strategyId } = body;
 
   const strategy = await Strategy.findById(strategyId).lean();
   if (!strategy) return NextResponse.json({ error: "Strategy not found" }, { status: 404 });
 
-  const delegations = await Delegation.find({ strategyId, isActive: true }).lean();
+  const nowSec = Math.floor(Date.now() / 1000);
+  const delegations = await Delegation.find({
+    strategyId,
+    isActive: true,
+    expiry: { $gt: nowSec },
+  }).lean();
   if (delegations.length === 0) {
     return NextResponse.json({ message: "No active followers" });
   }
@@ -99,9 +111,9 @@ export async function POST(req: NextRequest) {
       continue;
     }
 
-    if (delegation.expiry < Math.floor(Date.now() / 1000)) {
-      await Delegation.findByIdAndUpdate(delegation._id, { isActive: false });
-      results.push({ follower: delegation.followerAddress, error: "Delegation expired" });
+    // Validate delegationManager is a valid hex address before using it
+    if (!/^0x[0-9a-fA-F]{40}$/.test(delegation.delegationManager ?? "")) {
+      results.push({ follower: delegation.followerAddress, error: "Invalid delegationManager address" });
       continue;
     }
 

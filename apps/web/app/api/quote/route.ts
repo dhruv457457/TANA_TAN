@@ -39,13 +39,12 @@ export async function POST(request: NextRequest) {
 
     if (!res.ok) {
       console.error("Composer quote error:", res.status, json);
-      // Return null so client knows it's a mock
-      return NextResponse.json({ mock: true, error: json?.message ?? "Quote failed" });
+      return NextResponse.json({ error: json?.message ?? "Quote failed" }, { status: res.status });
     }
 
     return NextResponse.json(json);
   } catch (e) {
     console.error("Composer fetch failed:", e);
-    return NextResponse.json({ mock: true, error: "Network error" });
+    return NextResponse.json({ error: "Network error" }, { status: 502 });
   }
 }

@@ -71,7 +71,7 @@ export async function GET(request: NextRequest) {
   const params = new URLSearchParams({
     asset,
     sortBy,
-    minTvlUsd: "100000",
+    minTvl: "100000",
     limit: "50",
   });
   if (chainId) params.set("chainId", chainId);
