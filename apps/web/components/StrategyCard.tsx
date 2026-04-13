@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import Link from "next/link";
 import { useAccount } from "wagmi";
 import { useCopyStrategy, type StrategyToCopy } from "@/hooks/useCopyStrategy";
 import { useMyDelegations } from "@/hooks/useMyDelegations";
@@ -110,24 +111,30 @@ export function StrategyCard({ strategy, index, onAuthorClick }: Props) {
       {/* Header */}
       <div className="flex items-start justify-between gap-3 p-4 pb-3">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-lg bg-[#F5B731] flex items-center justify-center text-[#1A1A1A] font-black text-sm border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A]">
-            {strategy.protocol.slice(0, 2).toUpperCase()}
-          </div>
+          {/* Protocol Logo - using known logos or fallback to initials */}
+          {(strategy as { protocolLogoUri?: string }).protocolLogoUri ? (
+            <img
+              src={(strategy as { protocolLogoUri?: string }).protocolLogoUri}
+              alt={strategy.protocol}
+              className="w-10 h-10 rounded-lg border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A] object-contain bg-white"
+            />
+          ) : (
+            <div className="w-10 h-10 rounded-lg bg-[#F5B731] flex items-center justify-center text-[#1A1A1A] font-black text-sm border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A]">
+              {strategy.protocol.slice(0, 2).toUpperCase()}
+            </div>
+          )}
           <div>
             <p className="font-bold text-[#1A1A1A] text-sm font-display">
               {strategy.vaultName || `${strategy.protocol} ${strategy.asset}`}
             </p>
             <p className="text-xs text-[#888888]">
               {strategy.chainName} · by{" "}
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onAuthorClick?.(strategy.author);
-                }}
+              <Link
+                href={`/profile/${strategy.author}`}
                 className="text-[#2F7EE5] hover:underline font-mono"
               >
                 {strategy.author.slice(0, 6)}…{strategy.author.slice(-4)}
-              </button>
+              </Link>
             </p>
           </div>
         </div>

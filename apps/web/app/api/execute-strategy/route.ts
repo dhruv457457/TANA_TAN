@@ -6,6 +6,7 @@ import {
   parseUnits,
   encodeFunctionData,
   erc20Abi,
+  Chain,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, mainnet, arbitrum } from "viem/chains";
@@ -20,7 +21,7 @@ const LIFI_API_KEY = process.env.LIFI_API_KEY ?? "";
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? "";
 
-const CHAIN_CONFIG: Record<number, { chain: typeof base; rpc: string; name: string }> = {
+const CHAIN_CONFIG: Record<number, { chain: Chain; rpc: string; name: string }> = {
   8453: { chain: base, rpc: "https://mainnet.base.org", name: "Base" },
   1: { chain: mainnet, rpc: "https://eth.llamarpc.com", name: "Ethereum" },
   42161: { chain: arbitrum, rpc: "https://arb1.arbitrum.io/rpc", name: "Arbitrum" },

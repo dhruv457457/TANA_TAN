@@ -176,11 +176,11 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full bg-[#FAF6EE]">
+    <div className="flex flex-col h-full min-h-0 bg-[#FAF6EE]">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full gap-6 py-10">
+          <div className="flex flex-col items-center justify-center min-h-[200px] gap-6 py-10">
             <div className="text-center">
               <h2 className="text-2xl font-black text-[#1A1A1A] tracking-tight mb-2 font-display">
                 TANA finds the yield.

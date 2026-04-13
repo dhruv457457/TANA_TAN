@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const {
-    author, vaultAddress, chainId, protocol, chainName,
+    author, vaultAddress, chainId, protocol, protocolLogoUri, chainName,
     vaultName, asset, apy, tvlUsd, riskLabel, pitch,
   } = body;
 
@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     vaultAddress: vaultAddress.toLowerCase(),
     chainId,
     protocol,
+    protocolLogoUri: protocolLogoUri ?? "",
     chainName: chainName ?? "",
     vaultName: vaultName ?? "",
     asset: asset ?? "USDC",
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
     tvlUsd: tvlUsd ?? 0,
     riskLabel: riskLabel ?? "Balanced",
     pitch: pitch ?? "",
-    lastTriggeredAt: new Date(), // trigger immediately so new followers execute on first poll
+    lastTriggeredAt: new Date(),
   });
 
   return NextResponse.json(strategy, { status: 201 });

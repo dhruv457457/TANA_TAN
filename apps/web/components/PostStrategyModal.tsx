@@ -31,6 +31,7 @@ export function PostStrategyModal({ plan, onClose, onPosted }: Props) {
           vaultAddress: vault.address,
           chainId: vault.chainId,
           protocol: vault.protocol,
+          protocolLogoUri: vault.protocolLogoUri ?? "",
           chainName: vault.chainName,
           vaultName: vault.name,
           asset: vault.asset,
@@ -72,9 +73,17 @@ export function PostStrategyModal({ plan, onClose, onPosted }: Props) {
           {/* Vault preview */}
           {vault && (
             <div className="rounded-xl border-2 border-[#1A1A1A] bg-[#FAF6EE] p-3 mb-4 flex items-center gap-3 shadow-[2px_2px_0_#1A1A1A]">
-              <div className="w-9 h-9 rounded-lg bg-[#F5B731] border-2 border-[#1A1A1A] flex items-center justify-center text-[#1A1A1A] font-black text-xs shrink-0">
-                {vault.protocol.slice(0, 2).toUpperCase()}
-              </div>
+              {vault.protocolLogoUri ? (
+                <img
+                  src={vault.protocolLogoUri}
+                  alt={vault.protocol}
+                  className="w-9 h-9 rounded-lg border-2 border-[#1A1A1A] object-contain bg-white"
+                />
+              ) : (
+                <div className="w-9 h-9 rounded-lg bg-[#F5B731] border-2 border-[#1A1A1A] flex items-center justify-center text-[#1A1A1A] font-black text-xs shrink-0">
+                  {vault.protocol.slice(0, 2).toUpperCase()}
+                </div>
+              )}
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-bold text-[#1A1A1A] truncate font-display">{vault.name}</p>
                 <p className="text-xs text-[#888888]">{vault.chainName}</p>

@@ -25,7 +25,11 @@ const earnClient = axios.create({
   timeout: 10000,
   headers: LIFI_API_KEY ? { "x-lifi-api-key": LIFI_API_KEY } : {}
 });
-const composerClient = axios.create({ baseURL: COMPOSER_BASE, timeout: 15000 });
+const composerClient = axios.create({ 
+  baseURL: COMPOSER_BASE, 
+  timeout: 15000,
+  headers: LIFI_API_KEY ? { "x-lifi-api-key": LIFI_API_KEY } : {}
+});
 
 export async function fetchVaults(params?: {
   asset?: string;
@@ -88,7 +92,7 @@ export async function fetchComposerQuote(params: {
   fromAddress: string;
   toAddress: string;
   integrator: string;
-  apiKey: string;
+  apiKey?: string;
 }): Promise<ComposerQuote> {
   const { data, status, statusText } = await composerClient.get("/v1/quote", {
     params: {
@@ -101,7 +105,6 @@ export async function fetchComposerQuote(params: {
       toAddress: params.toAddress,
       integrator: params.integrator,
     },
-    headers: { "x-lifi-api-key": params.apiKey },
   });
   
   // Check HTTP status - any non-2xx is an error

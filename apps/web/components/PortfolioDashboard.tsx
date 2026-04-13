@@ -381,7 +381,7 @@ export function PortfolioDashboard({ address }: { address?: string | null }) {
       <div>
         {/* Protocol Tabs */}
         {protocols.length > 1 && (
-          <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          <div className="flex gap-2 mb-4 overflow-x-auto pb-1 scrollbar-hide">
             <button
               onClick={() => setActiveTab("all")}
               className={`px-4 py-2 rounded-lg text-xs font-bold border-2 transition-colors shrink-0 ${

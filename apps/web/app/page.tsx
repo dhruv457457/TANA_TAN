@@ -4,9 +4,10 @@ import { ChatInterface } from "@/components/ChatInterface";
 import { PortfolioDashboard } from "@/components/PortfolioDashboard";
 import { Navbar } from "@/components/Navbar";
 import { ConnectButton } from "@/components/ConnectButton";
+import { ManualDepositWithdraw } from "@/components/ManualDepositWithdraw";
 import { useTanaStore } from "@/store";
 import { useAccount } from "wagmi";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 
 const FEATURES = [
   {
@@ -127,8 +128,8 @@ function LandingPage() {
           transition={{ delay: 0.3, duration: 0.5 }}
           className="text-lg md:text-xl text-[#888888] max-w-xl mx-auto mb-10 text-center leading-relaxed"
         >
-          Social copy-trading for DeFi. Grant permission once.
-          Auto-follow alpha strategies across 15+ chains.
+          Social copy-trading for DeFi. Copy top traders, share strategies,
+          earn together. Auto-follow alpha across 15+ chains.
         </motion.p>
 
         <motion.div
@@ -316,9 +317,10 @@ export default function Home() {
   const storeAddress = useTanaStore((s) => s.walletAddress);
   const walletAddress = address ?? storeAddress;
   const isConnected = !!walletAddress;
+  const [showManualModal, setShowManualModal] = useState(false);
 
   return (
-    <div className="flex flex-col h-full min-h-screen bg-[#FAF6EE]">
+    <div className="flex flex-col h-screen bg-[#FAF6EE]">
       {/* Background blobs */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-[#F5B731]/10 blur-3xl" />
@@ -329,18 +331,38 @@ export default function Home() {
       <Navbar />
 
       {isConnected ? (
-        <div className="relative z-10 flex flex-1 gap-0 overflow-hidden">
-          <div className="flex-1 flex flex-col min-w-0 max-h-[calc(100vh-57px)]">
+        <div className="relative z-10 flex flex-1 min-h-0 overflow-hidden">
+          <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
             <ChatInterface />
           </div>
-          <div className="hidden lg:flex flex-col w-80 border-l-2 border-[#D0CFCF] p-4 gap-4 overflow-y-auto">
+          <div className="hidden lg:flex flex-col w-80 border-l-2 border-[#D0CFCF] p-4 gap-4 shrink-0 overflow-y-auto">
+            {/* Manual Deposit/Withdraw Buttons */}
+            <div className="grid grid-cols-2 gap-2 shrink-0">
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowManualModal(true)}
+                className="py-2.5 rounded-lg bg-[#F5B731] hover:bg-[#E5A720] text-[#1A1A1A] text-xs font-black border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A] hover:shadow-[3px_3px_0_#1A1A1A] transition-shadow"
+              >
+                + Deposit
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => setShowManualModal(true)}
+                className="py-2.5 rounded-lg bg-[#F06292] hover:#E05080 text-white text-xs font-black border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A] hover:shadow-[3px_3px_0_#1A1A1A] transition-shadow"
+              >
+                Withdraw
+              </motion.button>
+            </div>
+
             <div>
               <p className="text-xs font-semibold text-[#888888] uppercase tracking-wider mb-3">
                 Active Positions
               </p>
               <PortfolioDashboard address={walletAddress} />
             </div>
-            <div className="rounded-xl border-2 border-[#1A1A1A] bg-white p-4 shadow-[3px_3px_0_#1A1A1A]">
+            <div className="shrink-0 rounded-xl border-2 border-[#1A1A1A] bg-white p-4 shadow-[3px_3px_0_#1A1A1A]">
               <p className="text-xs font-semibold text-[#888888] uppercase tracking-wider mb-3">
                 Powered by LI.FI
               </p>
@@ -355,6 +377,8 @@ export default function Home() {
       ) : (
         <LandingPage />
       )}
+
+      <ManualDepositWithdraw isOpen={showManualModal} onClose={() => setShowManualModal(false)} />
     </div>
   );
 }

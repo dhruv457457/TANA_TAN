@@ -72,14 +72,23 @@ export default function FeedPage() {
               Copy alpha strategies — backend auto-executes when they move
             </p>
           </div>
-          {address && (
-            <Link
-              href="/"
-              className="px-4 py-2 rounded-lg bg-[#F5B731] hover:bg-[#E5A720] text-[#1A1A1A] text-sm font-black border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A]"
+          <div className="flex items-center gap-2">
+            <button
+              onClick={load}
+              disabled={isLoading}
+              className="px-3 py-2 rounded-lg bg-white border-2 border-[#1A1A1A] text-sm font-bold text-[#1A1A1A] hover:shadow-[2px_2px_0_#1A1A1A] transition-shadow disabled:opacity-50"
             >
-              + Post Strategy
-            </Link>
-          )}
+              {isLoading ? "Loading…" : "↻ Refresh"}
+            </button>
+            {address && (
+              <Link
+                href="/"
+                className="px-4 py-2 rounded-lg bg-[#F5B731] hover:bg-[#E5A720] text-[#1A1A1A] text-sm font-black border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A]"
+              >
+                + Post Strategy
+              </Link>
+            )}
+          </div>
         </div>
 
         {/* Search */}
@@ -148,15 +157,22 @@ export default function FeedPage() {
         {/* Leaderboard top 3 */}
         {!isLoading && filtered.length > 0 && sort === "followers" && !searchQuery && (
           <div className="mb-6">
-            <p className="text-xs font-semibold text-[#888888] uppercase tracking-wider mb-3">Top Copied Strategies</p>
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-lg">🔥</span>
+              <p className="text-xs font-semibold text-[#888888] uppercase tracking-wider">Trending Strategies</p>
+            </div>
             <div className="grid grid-cols-3 gap-3">
               {filtered.slice(0, 3).map((s, i) => (
-                <div key={s._id} className="rounded-xl border-2 border-[#1A1A1A] bg-white p-3 text-center shadow-[3px_3px_0_#1A1A1A]">
+                <Link
+                  key={s._id}
+                  href={`/profile/${s.author}`}
+                  className="rounded-xl border-2 border-[#1A1A1A] bg-white p-3 text-center shadow-[3px_3px_0_#1A1A1A] hover:shadow-[5px_5px_0_#F5B731] transition-shadow"
+                >
                   <div className="text-2xl mb-1">{["🥇", "🥈", "🥉"][i]}</div>
                   <p className="text-xs font-bold text-[#1A1A1A] truncate font-display">{s.protocol}</p>
                   <p className="text-xs text-[#4CAF82] font-black">{((s.apy ?? 0) * 100).toFixed(2)}% APY</p>
                   <p className="text-xs text-[#F5B731] font-bold">{s.followerCount} followers</p>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

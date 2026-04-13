@@ -321,23 +321,31 @@ npm run dev
 
 ## Design Language
 
-**Dark terminal aesthetic** — monospace type, neon green accents, minimal chrome.
+**Modern cream aesthetic** — clean white/cream surfaces, bold yellow accents, playful but professional.
 
 ```
-Background:  #0A0A0A
-Surface:     #111111
-Border:      #1F1F1F
-Accent:      #00FF88  (TANA — discovery)
-Accent2:     #FF6B00  (TAN — execution)
-Text:        #E8E8E8
-Muted:       #555555
-Font:        "JetBrains Mono" (mono) + "Syne" (display)
+Background:   #FAF6EE (cream)
+Surface:      #FFFFFF (white)
+Border:       #1A1A1A (black, 2px solid)
+Accent:       #F5B731  (TANA — discovery/gold)
+Accent2:      #4CAF82  (success/green)
+Accent3:      #F06292  (withdraw/pink)
+Text:         #1A1A1A (primary)
+Muted:        #888888 (secondary)
+Font:         "Plus Jakarta Sans" + "Syne" (display)
 ```
 
 Risk labels use color-coded chips:
-- 🟢 Safe → `#00FF88`
-- 🟡 Balanced → `#FFD700`
-- 🔴 Degen → `#FF4444`
+- 🟢 Safe → `#4CAF82`
+- 🟡 Balanced → `#F5B731`
+- 🔴 Degen → `#F06292`
+
+**Social Features:**
+- User profile pages at `/profile/[address]`
+- Strategy feed with trending leaderboard
+- Click on author to view their profile
+- Follow/unfollow strategies with one click
+- Auto-execution when alpha moves funds
 
 ---
 
@@ -348,7 +356,7 @@ Risk labels use color-coded chips:
 | API Integration | 35% | All 5 Earn endpoints + Composer quote. Portfolio tracking. Cron uses portfolio API. |
 | Innovation | 25% | Risk scoring using apy30d stability signal. Proactive alerts. Visual route map. Split TANA/TAN identity mirroring LI.FI's own two-layer architecture. |
 | Product Completeness | 20% | Full flow: intent → discover → score → allocate → execute → verify → alert |
-| Presentation | 20% | Dark terminal UI, animated route visualization, clean demo video |
+| Presentation | 20% | Cream UI with animated route visualization, profile pages, trending leaderboard |
 
 ---
 

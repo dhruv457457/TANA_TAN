@@ -71,9 +71,17 @@ export function VaultCard({ plan, index }: { plan: AllocationPlan; index: number
 
       {/* Header */}
       <div className="flex items-start gap-3 mb-4">
-        <div className="w-10 h-10 rounded-lg bg-[#F5B731] flex items-center justify-center text-[#1A1A1A] font-black text-sm border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A] shrink-0">
-          {vault.protocol.slice(0, 2).toUpperCase()}
-        </div>
+        {vault.protocolLogoUri ? (
+          <img
+            src={vault.protocolLogoUri}
+            alt={vault.protocol}
+            className="w-10 h-10 rounded-lg border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A] object-contain bg-white shrink-0"
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-lg bg-[#F5B731] flex items-center justify-center text-[#1A1A1A] font-black text-sm border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A] shrink-0">
+            {vault.protocol.slice(0, 2).toUpperCase()}
+          </div>
+        )}
         <div className="min-w-0">
           <p className="font-bold text-[#1A1A1A] truncate font-display">{vault.name}</p>
           <p className="text-xs text-[#888888] mt-0.5">{vault.chainName}</p>

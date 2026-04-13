@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchVaultDetail, fetchComposerQuote } from "@/lib/lifi";
 import { parseUnits } from "viem";
 
-const LIFI_API_KEY = process.env.LIFI_API_KEY ?? "";
 const TANA_RELAY_SECRET = process.env.TANA_RELAY_SECRET ?? "";
 
 export async function POST(req: NextRequest) {
@@ -100,7 +99,6 @@ export async function POST(req: NextRequest) {
       fromAddress: userAddress,
       toAddress: userAddress,
       integrator: "tana-tan",
-      apiKey: LIFI_API_KEY,
     });
 
     if (quote.error || !quote.transactionRequest) {

@@ -7,6 +7,7 @@ const StrategySchema = new Schema(
     vaultAddress: { type: String, required: true, lowercase: true },
     chainId: { type: Number, required: true },
     protocol: { type: String, required: true },
+    protocolLogoUri: { type: String, default: "" },
     chainName: { type: String, default: "" },
     vaultName: { type: String, default: "" },
     asset: { type: String, default: "USDC" },
@@ -17,7 +18,7 @@ const StrategySchema = new Schema(
     followerCount: { type: Number, default: 0 },
     totalValueManaged: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
-    lastTriggeredAt: { type: Date, default: null }, // set when alpha triggers execution
+    lastTriggeredAt: { type: Date, default: null },
   },
   { timestamps: true }
 );
