@@ -1,4 +1,17 @@
-import mongoose, { Schema, model, models } from "mongoose";
+import mongoose from "mongoose";
+const { Schema, model } = mongoose;
+
+// Use global cache to avoid re-registering models in dev (hot reload safe)
+declare global {
+  // eslint-disable-next-line no-var
+  var _mongoModels: {
+    Strategy?: typeof model;
+    Delegation?: typeof model;
+    ExecutionLog?: typeof model;
+  } | undefined;
+}
+
+const g = global as typeof globalThis & { _mongoModels: typeof global._mongoModels };
 
 // ─── Strategy ───────────────────────────────────────────────────────────────
 const StrategySchema = new Schema(
@@ -68,7 +81,16 @@ const ExecutionLogSchema = new Schema(
 ExecutionLogSchema.index({ followerAddress: 1, executedAt: -1 });
 ExecutionLogSchema.index({ strategyId: 1, executedAt: -1 });
 
-// ─── Exports ─────────────────────────────────────────────────────────────────
-export const Strategy = models.Strategy ?? model("Strategy", StrategySchema);
-export const Delegation = models.Delegation ?? model("Delegation", DelegationSchema);
-export const ExecutionLog = models.ExecutionLog ?? model("ExecutionLog", ExecutionLogSchema);
+// ─── Exports (with global cache) ─────────────────────────────────────────────
+if (!g._mongoModels) {
+  g._mongoModels = {};
+}
+
+export const Strategy =
+  g._mongoModels.Strategy ?? (g._mongoModels.Strategy = model("Strategy", StrategySchema));
+
+export const Delegation =
+  g._mongoModels.Delegation ?? (g._mongoModels.Delegation = model("Delegation", DelegationSchema));
+
+export const ExecutionLog =
+  g._mongoModels.ExecutionLog ?? (g._mongoModels.ExecutionLog = model("ExecutionLog", ExecutionLogSchema));

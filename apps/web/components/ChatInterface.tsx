@@ -21,15 +21,16 @@ function MessageBubble({ msg }: { msg: ChatMessage }) {
   const isUser = msg.role === "user";
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
       className={`flex ${isUser ? "justify-end" : "justify-start"}`}
     >
       <div
         className={`max-w-[85%] ${
           isUser
-            ? "bg-violet-600 text-white rounded-2xl rounded-tr-sm px-4 py-2.5"
-            : "bg-white/5 border border-white/10 text-white/90 rounded-2xl rounded-tl-sm px-4 py-2.5"
+            ? "bg-[#F5B731] text-[#1A1A1A] border-2 border-[#1A1A1A] shadow-[3px_3px_0_#1A1A1A] rounded-xl rounded-tr-sm px-4 py-2.5"
+            : "bg-white text-[#1A1A1A] border-2 border-[#1A1A1A] shadow-[3px_3px_0_#1A1A1A] rounded-xl rounded-tl-sm px-4 py-2.5"
         }`}
       >
         <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
@@ -76,55 +77,73 @@ export function ChatInterface() {
       addMessage(userMsg);
 
       try {
-        // Parse intent
         const intent = await parseIntent(text);
         setIntent(intent);
 
         const SUPPORTED_CHAINS = new Set([1, 8453, 42161, 10, 137]);
 
-        // Determine target chain: user-mentioned chain, or their wallet chain
         const targetChainId = (intent.chainIds && intent.chainIds.length > 0)
           ? intent.chainIds[0]
           : currentChainId;
 
         const effectiveChain = SUPPORTED_CHAINS.has(targetChainId) ? targetChainId : currentChainId;
 
-        // If the target chain differs from what we have cached, fetch fresh
         let vaults = (allVaults ?? []).filter((v) => v.chainId === effectiveChain);
+        console.log("[Chat] allVaults:", allVaults?.length, "effectiveChain:", effectiveChain, "vaults:", vaults.length);
         if (vaults.length === 0) {
           const params = new URLSearchParams({ sortBy: "apy", chainId: String(effectiveChain) });
           const res = await fetch(`/api/vaults?${params}`);
           if (res.ok) vaults = await res.json();
+          console.log("[Chat] Fetched from API:", vaults.length);
         }
 
-        // Filter by asset + APY, cap extreme APYs to avoid flash-loan noise
+        // When protocol is specified, use 0% minApy to not filter out low-APY vaults
+        const effectiveMinApy = (intent.preferredProtocols?.length || intent.excludedProtocols?.length)
+          ? 0
+          : intent.minApy;
+        
         const filtered = vaults.filter((v) => {
           const assetMatch = v.asset.toUpperCase() === intent.asset.toUpperCase();
           const apyCapped = Math.min(v.apy.total, 2.0);
-          return assetMatch && apyCapped >= intent.minApy;
+          return assetMatch && apyCapped >= effectiveMinApy;
         });
-        // Fall back to asset match only if APY filter is too strict
+        console.log("[Chat] filtered by asset+APY:", filtered.length, "effectiveMinApy:", effectiveMinApy);
+        
         const pool = filtered.length > 0
           ? filtered
           : vaults.filter((v) => v.asset.toUpperCase() === intent.asset.toUpperCase());
         const scored = scoreAndLabelVaults(pool);
 
-        const plans = allocate(scored, intent.amount, intent.riskTolerance, intent.maxVaults);
+        console.log("[Chat] preferred:", intent.preferredProtocols, "excluded:", intent.excludedProtocols);
+        const plans = allocate(
+          scored,
+          intent.amount,
+          intent.riskTolerance,
+          intent.maxVaults,
+          intent.preferredProtocols,
+          intent.excludedProtocols
+        );
+        console.log("[Chat] plans:", plans.length);
         setAllocations(plans);
 
-        const riskMap = { safe: "🟢 Safe", balanced: "🟡 Balanced", degen: "🔴 Degen" };
+        const riskMap = { safe: "Safe", balanced: "Balanced", degen: "Degen" };
         const avgApy =
           plans.length > 0
             ? plans.reduce((s, p) => s + p.vault.apy.total * p.percentage, 0) * 100
             : 0;
 
         const isSingleVault = intent.maxVaults === 1;
+        const protocolFilter = intent.preferredProtocols?.length
+          ? ` (${intent.preferredProtocols.join("/")})`
+          : intent.excludedProtocols?.length
+          ? ` (excluding ${intent.excludedProtocols.join("/")})`
+          : "";
         const replyContent =
           plans.length === 0
-            ? `No ${intent.asset} vaults found matching your criteria (min APY ${(intent.minApy * 100).toFixed(1)}%, risk: ${intent.riskTolerance}). Try adjusting your requirements.`
+            ? `No ${intent.asset} vaults found matching your criteria${protocolFilter}. Try adjusting your requirements.`
             : isSingleVault
-            ? `Going all-in on the best vault for $${intent.amount.toLocaleString()} ${intent.asset} — ${riskMap[intent.riskTolerance]} strategy.\n\nAPY: ~${avgApy.toFixed(2)}%\n\nHere's your vault:`
-            : `Found ${plans.length} vault${plans.length > 1 ? "s" : ""} for $${intent.amount.toLocaleString()} ${intent.asset} — ${riskMap[intent.riskTolerance]} strategy.\n\nWeighted APY: ~${avgApy.toFixed(2)}%\n\nHere's your optimized allocation:`;
+            ? `Going all-in on the best vault for $${intent.amount.toLocaleString()} ${intent.asset}${protocolFilter} — ${riskMap[intent.riskTolerance]} strategy.\n\nAPY: ~${avgApy.toFixed(2)}%\n\nHere's your vault:`
+            : `Found ${plans.length} vault${plans.length > 1 ? "s" : ""} for $${intent.amount.toLocaleString()} ${intent.asset}${protocolFilter} — ${riskMap[intent.riskTolerance]} strategy.\n\nWeighted APY: ~${avgApy.toFixed(2)}%\n\nHere's your optimized allocation:`;
 
         const assistantMsg: ChatMessage = {
           id: `${Date.now()}-assistant`,
@@ -135,7 +154,7 @@ export function ChatInterface() {
           timestamp: Date.now(),
         };
         addMessage(assistantMsg);
-      } catch (err) {
+      } catch {
         addMessage({
           id: `${Date.now()}-error`,
           role: "assistant",
@@ -157,16 +176,16 @@ export function ChatInterface() {
   };
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-[#FAF6EE]">
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4 min-h-0">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full gap-6 py-10">
             <div className="text-center">
-              <h2 className="text-2xl font-black text-white tracking-tight mb-2">
+              <h2 className="text-2xl font-black text-[#1A1A1A] tracking-tight mb-2 font-display">
                 TANA finds the yield.
               </h2>
-              <p className="text-white/40 text-sm">
+              <p className="text-[#888888] text-sm">
                 Tell me what you want to earn. I&apos;ll handle the rest.
               </p>
             </div>
@@ -175,7 +194,7 @@ export function ChatInterface() {
                 <button
                   key={s}
                   onClick={() => handleSend(s)}
-                  className="text-left text-sm text-white/60 hover:text-white/90 px-4 py-3 rounded-xl border border-white/5 hover:border-white/15 bg-white/[0.03] hover:bg-white/[0.06] transition-all"
+                  className="text-left text-sm text-[#1A1A1A] px-4 py-3 rounded-xl border-2 border-[#1A1A1A] bg-white hover:bg-[#F5B731] shadow-[2px_2px_0_#1A1A1A] hover:shadow-[4px_4px_0_#1A1A1A] transition-all"
                 >
                   {s}
                 </button>
@@ -204,7 +223,7 @@ export function ChatInterface() {
                   ))}
                   <button
                     onClick={() => setShowRouteMap(!showRouteMap)}
-                    className="text-xs text-violet-400 hover:text-violet-300 transition-colors mt-1"
+                    className="text-xs text-[#2F7EE5] hover:text-[#1a5fc0] transition-colors mt-1"
                   >
                     {showRouteMap ? "Hide" : "Show"} execution route →
                   </button>
@@ -236,11 +255,11 @@ export function ChatInterface() {
             animate={{ opacity: 1 }}
             className="flex justify-start"
           >
-            <div className="bg-white/5 border border-white/10 rounded-2xl rounded-tl-sm px-4 py-3 flex gap-1.5">
+            <div className="bg-white border-2 border-[#1A1A1A] shadow-[3px_3px_0_#1A1A1A] rounded-xl rounded-tl-sm px-4 py-3 flex gap-1.5">
               {[0, 1, 2].map((i) => (
                 <motion.span
                   key={i}
-                  className="w-1.5 h-1.5 rounded-full bg-violet-400"
+                  className="w-1.5 h-1.5 rounded-full bg-[#F5B731]"
                   animate={{ opacity: [0.3, 1, 0.3] }}
                   transition={{ repeat: Infinity, duration: 1.2, delay: i * 0.2 }}
                 />
@@ -252,7 +271,7 @@ export function ChatInterface() {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t border-white/5">
+      <div className="p-4 border-t-2 border-[#D0CFCF]">
         <div className="flex gap-3 items-end">
           <textarea
             value={input}
@@ -260,18 +279,20 @@ export function ChatInterface() {
             onKeyDown={handleKeyDown}
             placeholder="Tell TANA what yield you want…"
             rows={1}
-            className="flex-1 resize-none bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm text-white placeholder:text-white/30 focus:outline-none focus:border-violet-500/50 transition-colors"
+            className="flex-1 resize-none bg-white border-2 border-[#1A1A1A] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] placeholder:text-[#888888] focus:outline-none focus:shadow-[4px_4px_0_#F5B731] transition-shadow"
             style={{ minHeight: 48, maxHeight: 120 }}
           />
-          <button
+          <motion.button
             onClick={() => handleSend(input)}
             disabled={!input.trim() || isLoading}
-            className="h-12 w-12 rounded-xl bg-violet-600 hover:bg-violet-500 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center text-white transition-colors shrink-0"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            className="h-12 w-12 rounded-xl bg-[#F5B731] hover:bg-[#E5A720] border-2 border-[#1A1A1A] shadow-[3px_3px_0_#1A1A1A] flex items-center justify-center text-[#1A1A1A] disabled:opacity-30 disabled:cursor-not-allowed shrink-0 transition-shadow"
           >
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
               <path d="M14 8L2 2l2 6-2 6 12-6z" fill="currentColor" />
             </svg>
-          </button>
+          </motion.button>
         </div>
       </div>
     </div>

@@ -9,10 +9,10 @@ import { fileURLToPath } from "url";
 
 
 // Configuration
-const CONTRACT_ADDRESS = "0xa5076f08630bdfF2567Abc29aC7F796e0B2Ac3c6";
+const CONTRACT_ADDRESS = process.env.TANA_AUTO_DEPOSIT ?? process.env.NEXT_PUBLIC_TANA_AUTO_DEPOSIT;
 const USDC_ADDRESS = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913";
-const RECIPIENT = "0x8dd782e70683Eec48B0c4c8081c5a365598dD2Ab"; 
-const AMOUNT = "0.15"; 
+const RECIPIENT = "0x8dd782e70683Eec48B0c4c8081c5a365598dD2Ab"; // follower — return stuck USDC
+const AMOUNT = "0.01";
 
 const ABI = [
   {
@@ -29,9 +29,13 @@ const ABI = [
 ];
 
 async function main() {
-  const pk = "0xb94a5e12edffa3bf7a31082a0cafe912af9b5e5410be391a7f01ba1f26ac85df";
+  const pk = process.env.BACKEND_PRIVATE_KEY;
   if (!pk) {
     console.error("❌ BACKEND_PRIVATE_KEY missing in .env");
+    process.exit(1);
+  }
+  if (!CONTRACT_ADDRESS) {
+    console.error("❌ TANA_AUTO_DEPOSIT missing in .env");
     process.exit(1);
   }
 

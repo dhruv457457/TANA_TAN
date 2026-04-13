@@ -2,84 +2,70 @@
 import { motion } from "framer-motion";
 import type { AllocationPlan } from "@/types";
 
-interface RouteMapProps {
-  allocations: AllocationPlan[];
-  fromChain?: string;
-  asset?: string;
-}
-
-const CHAIN_COLORS: Record<string, string> = {
-  Ethereum: "from-blue-500 to-blue-700",
-  Base: "from-blue-400 to-blue-600",
-  Arbitrum: "from-sky-400 to-sky-600",
-  Optimism: "from-rose-400 to-rose-600",
-  Polygon: "from-purple-400 to-purple-600",
+const EXPLORER_BY_CHAIN: Record<number, string> = {
+  8453: "https://basescan.org/tx/",
+  1: "https://etherscan.io/tx/",
+  42161: "https://arbiscan.io/tx/",
+  10: "https://optimistic.etherscan.io/tx/",
 };
 
-export function RouteMap({ allocations, fromChain = "Polygon", asset = "USDC" }: RouteMapProps) {
+export function RouteMap({
+  allocations,
+  asset,
+}: {
+  allocations: AllocationPlan[];
+  asset: string;
+}) {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.5 }}
-      className="rounded-2xl border border-white/10 bg-white/5 backdrop-blur-sm p-6"
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="rounded-xl border-2 border-[#1A1A1A] bg-white shadow-[3px_3px_0_#1A1A1A] p-4 max-w-md"
     >
-      <p className="text-xs font-semibold text-white/40 uppercase tracking-wider mb-5">
-        Route Map — The Mullet Moment
-      </p>
-
-      <div className="flex flex-col gap-4">
-        {/* Source */}
-        <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-xl bg-gradient-to-br ${CHAIN_COLORS[fromChain] ?? "from-violet-500 to-indigo-600"} flex items-center justify-center text-white text-xs font-black shrink-0`}>
-            {fromChain.slice(0, 2).toUpperCase()}
-          </div>
-          <div>
-            <p className="text-sm font-semibold text-white">Your Wallet</p>
-            <p className="text-xs text-white/40">{asset} on {fromChain}</p>
-          </div>
+      <p className="text-xs text-[#888888] uppercase tracking-wider mb-3">Execution Route</p>
+      <div className="space-y-1">
+        {/* Wallet */}
+        <div className="flex items-center gap-2">
+          <div className="w-6 h-6 rounded-lg bg-[#F5B731] border border-[#1A1A1A] flex items-center justify-center text-[#1A1A1A] text-[10px] font-black shrink-0">W</div>
+          <span className="text-xs text-[#1A1A1A] font-medium">Your Wallet</span>
+          <span className="text-xs text-[#888888] ml-auto">{asset}</span>
         </div>
-
-        {/* Routes */}
-        {allocations.map((plan, i) => {
-          const steps = plan.quote?.steps ?? [];
-          const isCrossChain = plan.vault.chainId !== 137; // assume polygon source
+        {allocations.map((plan) => {
           return (
-            <motion.div
-              key={plan.vault.address}
-              initial={{ opacity: 0, x: -10 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 + i * 0.15 }}
-              className="ml-5 pl-5 border-l border-dashed border-white/10"
-            >
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-white/30 text-xs">
-                  {(plan.percentage * 100).toFixed(0)}%
-                </span>
-                {isCrossChain && (
-                  <span className="text-xs bg-violet-500/20 text-violet-300 px-2 py-0.5 rounded-full">
-                    Bridge via {steps[0]?.toolDetails?.name ?? "LI.FI"}
-                  </span>
-                )}
-                <span className="text-white/30 text-xs">→</span>
-                <span className={`w-6 h-6 rounded-lg bg-gradient-to-br ${CHAIN_COLORS[plan.vault.chainName] ?? "from-violet-500 to-indigo-600"} flex items-center justify-center text-white text-[10px] font-black`}>
-                  {plan.vault.chainName.slice(0, 2).toUpperCase()}
-                </span>
-                <span className="text-sm text-white font-medium">
-                  {plan.vault.protocol} {asset} Vault
+            <div key={plan.vault.address}>
+              {/* Arrow */}
+              <div className="flex items-center gap-2 ml-3">
+                <div className="w-px h-4 border-l-2 border-[#D0CFCF] border-dashed" />
+                <div className="w-3 h-3 border-2 border-[#2F7EE5] rotate-45 -ml-1.5 -mr-0.5 shrink-0" />
+                <span className="text-[10px] text-[#888888]">
+                  {plan.percentage >= 0.5 ? "Main deposit" : `$${plan.amount} (${(plan.percentage * 100).toFixed(0)}%)`}
                 </span>
               </div>
-              <p className="text-xs text-white/30 ml-0">
-                ${plan.amount.toLocaleString()} → {(plan.vault.apy.total * 100).toFixed(2)}% APY
-              </p>
-            </motion.div>
+              {/* LI.FI */}
+              <div className="flex items-center gap-2 ml-3">
+                <div className="w-6 h-6 rounded-lg bg-[#2F7EE5] border border-[#1A1A1A] flex items-center justify-center text-white text-[10px] font-black shrink-0">L</div>
+                <span className="text-xs text-[#1A1A1A]">LI.FI Diamond</span>
+                <span className="text-[10px] text-[#888888] ml-auto">{plan.vault.chainName}</span>
+              </div>
+              {/* Vault */}
+              <div className="flex items-center gap-2">
+                <div className="w-6 h-6 rounded-lg bg-[#F5B731] border border-[#1A1A1A] flex items-center justify-center text-[#1A1A1A] text-[10px] font-black shrink-0">
+                  {plan.vault.protocol.slice(0, 2).toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <span className="text-xs text-[#1A1A1A] font-medium truncate">{plan.vault.name}</span>
+                </div>
+                <span className="text-[10px] text-[#4CAF82] ml-auto font-bold">
+                  {(plan.vault.apy.total * 100).toFixed(1)}%
+                </span>
+              </div>
+            </div>
           );
         })}
       </div>
-
-      <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between text-xs text-white/30">
-        <span>Powered by LI.FI Composer</span>
-        <span>Atomic cross-chain execution</span>
+      <div className="mt-3 pt-2 border-t border-[#D0CFCF] flex justify-between">
+        <span className="text-[10px] text-[#888888]">LI.FI Composer</span>
+        <span className="text-[10px] text-[#2F7EE5]">Multi-hop secured</span>
       </div>
     </motion.div>
   );

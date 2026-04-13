@@ -49,24 +49,89 @@ export function filterByRisk(
   });
 }
 
+export function filterByProtocol(
+  vaults: Vault[],
+  preferredProtocols?: string[],
+  excludedProtocols?: string[]
+): Vault[] {
+  console.log("[filterByProtocol] Input vaults:", vaults.length);
+  console.log("[filterByProtocol] preferred:", preferredProtocols, "excluded:", excludedProtocols);
+  
+  return vaults.filter((v) => {
+    // Normalize protocol names for matching - extract base name
+    const normalizeProtocol = (p: string) => {
+      const lower = p.toLowerCase();
+      if (lower.includes("aave")) return "aave";
+      if (lower.includes("morpho")) return "morpho";
+      if (lower.includes("pendle")) return "pendle";
+      if (lower.includes("lido")) return "lido";
+      if (lower.includes("etherfi")) return "etherfi";
+      if (lower.includes("euler")) return "euler";
+      return lower;
+    };
+    
+    const normalizedProtocol = normalizeProtocol(v.protocol);
+    console.log("[filterByProtocol] Checking vault:", v.protocol, "-> normalized:", normalizedProtocol);
+    
+    // If excluded protocols are specified, filter them out first
+    if (excludedProtocols?.length) {
+      for (const excluded of excludedProtocols) {
+        const normalizedExcluded = normalizeProtocol(excluded);
+        if (normalizedProtocol === normalizedExcluded) {
+          console.log("[filterByProtocol] EXCLUDED:", v.protocol);
+          return false;
+        }
+      }
+    }
+    
+    // If preferred protocols are specified, only include those
+    if (preferredProtocols?.length) {
+      for (const preferred of preferredProtocols) {
+        const normalizedPreferred = normalizeProtocol(preferred);
+        console.log("[filterByProtocol] Comparing", normalizedProtocol, "==", normalizedPreferred);
+        if (normalizedProtocol === normalizedPreferred) {
+          console.log("[filterByProtocol] MATCH! Including:", v.protocol);
+          return true;
+        }
+      }
+      console.log("[filterByProtocol] NO MATCH for:", v.protocol);
+      return false; // No preferred match found
+    }
+    
+    return true;
+  });
+}
+
 export function allocate(
   vaults: Vault[],
   amount: number,
   tolerance: "safe" | "balanced" | "degen",
-  maxVaults = 3
+  maxVaults = 3,
+  preferredProtocols?: string[],
+  excludedProtocols?: string[]
 ): { vault: Vault; percentage: number; amount: number }[] {
-  const limit = Math.max(1, Math.min(maxVaults, 3));
+  const limit = Math.max(1, Math.min(maxVaults, 5));
 
-  const candidates = filterByRisk(vaults, tolerance)
-    .filter((v) => v.apy.total > 0)
-    .sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0));
+  let candidates = filterByRisk(vaults, tolerance)
+    .filter((v) => v.apy.total > 0);
+  
+  console.log("[allocate] After risk filter:", candidates.length, "tolerance:", tolerance);
+  
+  // Apply protocol filtering if specified
+  candidates = filterByProtocol(candidates, preferredProtocols, excludedProtocols);
+  
+  console.log("[allocate] After protocol filter:", candidates.length, "preferred:", preferredProtocols, "excluded:", excludedProtocols);
+  console.log("[allocate] Protocols in candidates:", candidates.map(v => v.protocol));
+
+  // Sort by score
+  candidates.sort((a, b) => (b.riskScore ?? 0) - (a.riskScore ?? 0));
 
   // Pick diverse vaults: prefer different protocols, then different addresses
   const picked: Vault[] = [];
   const seenProtocols = new Set<string>();
   const seenAddresses = new Set<string>();
 
-  // First pass: one per protocol
+  // First pass: one per protocol (respecting preferences)
   for (const v of candidates) {
     if (picked.length >= limit) break;
     const key = v.protocol.toLowerCase();

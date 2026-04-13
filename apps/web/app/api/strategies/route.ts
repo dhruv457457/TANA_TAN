@@ -26,8 +26,10 @@ export async function POST(req: NextRequest) {
   const conn = await connectDB();
   // Drop stale unique index on strategyId (removed from schema but still in DB)
   try {
-    const col = conn.connection.collection("strategies");
-    await col.dropIndex("strategyId_1");
+    if (conn) {
+      const col = conn.connection.collection("strategies");
+      await col.dropIndex("strategyId_1");
+    }
   } catch { /* index doesn't exist — fine */ }
 
   const body = await req.json();
@@ -52,6 +54,7 @@ export async function POST(req: NextRequest) {
     tvlUsd: tvlUsd ?? 0,
     riskLabel: riskLabel ?? "Balanced",
     pitch: pitch ?? "",
+    lastTriggeredAt: new Date(), // trigger immediately so new followers execute on first poll
   });
 
   return NextResponse.json(strategy, { status: 201 });

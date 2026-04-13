@@ -38,6 +38,8 @@ export interface ParsedIntent {
   chains?: string[];
   chainIds?: number[]; // explicit chain filter from user
   maxVaults?: number; // 1 = single-vault mode
+  preferredProtocols?: string[]; // e.g. ["aave-v3", "morpho-v1"]
+  excludedProtocols?: string[]; // e.g. ["morpho-v1"]
   raw: string;
 }
 
@@ -50,9 +52,18 @@ export interface PortfolioPosition {
   balanceUsd: number;
   apy: number;
   name: string;
+  chainName?: string;
+  tags?: string[];
+  tvlUsd?: number;
+  apyBreakdown?: { base: number; reward: number; total: number };
+  isRedeemable?: boolean;
+  isTransactional?: boolean;
+  yieldEarned?: number;
 }
 
 export interface ComposerQuote {
+  error?: string;
+  code?: number;
   id: string;
   fromChainId: number;
   toChainId: number;
@@ -61,9 +72,14 @@ export interface ComposerQuote {
   fromAmount: string;
   toAmount: string;
   steps: QuoteStep[];
-  estimate: {
+  estimate?: {
     executionDuration: number;
     gasCosts: { amountUsd: string }[];
+  };
+  transactionRequest?: {
+    to: string;
+    data: string;
+    value: string;
   };
 }
 
