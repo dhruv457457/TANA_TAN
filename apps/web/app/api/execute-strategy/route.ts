@@ -17,7 +17,8 @@ import { fetchVaultDetail } from "@/lib/lifi";
 
 const BACKEND_PK = process.env.BACKEND_PRIVATE_KEY as `0x${string}`;
 const TANA_AUTO_DEPOSIT = process.env.TANA_AUTO_DEPOSIT as `0x${string}`;
-const LIFI_API_KEY = process.env.LIFI_API_KEY ?? "";
+const LIFI_API_KEY = process.env.LIFI_API_KEY;
+if (!LIFI_API_KEY) throw new Error("LIFI_API_KEY is required");
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN ?? "";
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? "";
 

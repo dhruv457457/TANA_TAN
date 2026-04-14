@@ -41,9 +41,9 @@ async function main() {
     console.log(`  - BACKEND_PRIVATE_KEY: ${process.env.BACKEND_PRIVATE_KEY ? "✓ set" : "✗ MISSING"}`);
     console.log(`  - TANA_AUTO_DEPOSIT: ${process.env.TANA_AUTO_DEPOSIT ? "✓ set" : "✗ MISSING"}`);
     console.log(`  - MONGODB_URI: ${process.env.MONGODB_URI ? "✓ set" : "✗ MISSING"}`);
+    console.log(`  - LIFI_API_KEY: ${process.env.LIFI_API_KEY ? "✓ set" : "✗ MISSING"}`);
     console.log(`  - TELEGRAM_BOT_TOKEN: ${process.env.TELEGRAM_BOT_TOKEN ? "✓ set" : "✗ not configured"}`);
     console.log(`  - TELEGRAM_CHAT_ID: ${process.env.TELEGRAM_CHAT_ID ? "✓ set" : "✗ not configured"}`);
-    console.log(`  - LIFI_API_KEY: ${process.env.LIFI_API_KEY ? "✓ set" : "✗ not configured"}`);
     await checkRelayerBalance();
     console.log("=".repeat(50));
     // ── HTTP server (required by Railway for health checks) ──────────────────
@@ -63,7 +63,7 @@ async function main() {
     // ── Start the 5-minute cron poller ───────────────────────────────────────
     startPoller();
     console.log(`[Server] Ready — polling every 5 minutes`);
-    console.log(`[Server] Logic: execute followers only when alpha triggers (lastTriggeredAt updated)`);
+    console.log(`[Server] Logic: execute each new delegation exactly once`);
     process.on("SIGINT", () => {
         console.log("\n[Server] Shutting down...");
         server.close();

@@ -35,15 +35,13 @@ async function runPoll() {
       const lastTriggeredAt = strategy.lastTriggeredAt as Date;
 
       // Count followers due for execution:
-      // never executed OR executed before the last trigger
+      // Execute ALL active delegations that haven't been executed yet
+      // (Each delegation executes once when created, then lastExecutedAt is set)
       const pendingCount = await Delegation.countDocuments({
         strategyId: strategy._id,
         isActive: true,
         expiry: { $gt: now },
-        $or: [
-          { lastExecutedAt: null },
-          { lastExecutedAt: { $lt: lastTriggeredAt } },
-        ],
+        lastExecutedAt: null,
       });
 
       if (pendingCount === 0) {

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const LIFI_API_KEY = process.env.LIFI_API_KEY ?? "";
+const LIFI_API_KEY = process.env.LIFI_API_KEY;
+if (!LIFI_API_KEY) throw new Error("LIFI_API_KEY is required");
 const COMPOSER_BASE = "https://li.quest";
 
 export async function POST(request: NextRequest) {
@@ -31,8 +32,7 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const headers: Record<string, string> = {};
-    if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY;
+    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
 
     const res = await fetch(`${COMPOSER_BASE}/v1/quote?${params}`, { headers });
     const json = await res.json();

@@ -3,7 +3,8 @@ import { scoreAndLabelVaults } from "@/lib/scorer";
 import type { Vault } from "@/types";
 
 const EARN_BASE = "https://earn.li.fi";
-const LIFI_API_KEY = process.env.LIFI_API_KEY ?? "";
+const LIFI_API_KEY = process.env.LIFI_API_KEY;
+if (!LIFI_API_KEY) throw new Error("LIFI_API_KEY is required");
 
 const CHAIN_NAMES: Record<number, string> = {
   1: "Ethereum", 8453: "Base", 42161: "Arbitrum", 10: "Optimism", 137: "Polygon",
@@ -77,8 +78,7 @@ export async function GET(request: NextRequest) {
   if (chainId) params.set("chainId", chainId);
 
   try {
-    const headers: Record<string, string> = {};
-    if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY;
+    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
 
     const res = await fetch(`${EARN_BASE}/v1/earn/vaults?${params}`, {
       headers,

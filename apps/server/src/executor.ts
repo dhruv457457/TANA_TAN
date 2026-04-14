@@ -19,8 +19,9 @@ import { sendTelegramAlert } from "./telegram.js";
 // Read lazily inside executeStrategy — module-level capture happens before dotenv runs
 function getEnv() {
   const BACKEND_PK = process.env.BACKEND_PRIVATE_KEY as `0x${string}`;
-  const LIFI_API_KEY = process.env.LIFI_API_KEY ?? "";
+  const LIFI_API_KEY = process.env.LIFI_API_KEY;
   if (!BACKEND_PK) throw new Error("BACKEND_PRIVATE_KEY is not set");
+  if (!LIFI_API_KEY) throw new Error("LIFI_API_KEY is required");
   return { BACKEND_PK, LIFI_API_KEY };
 }
 
@@ -147,19 +148,15 @@ export async function executeStrategy(
     if (!strategy) throw new Error(`Strategy ${strategyId} not found`);
 
     const now = Math.floor(Date.now() / 1000);
-    const delegationFilter: Record<string, unknown> = {
+    
+    // Execute ALL delegations that have never been executed (lastExecutedAt: null)
+    // Each new delegation will be executed exactly once when created
+    const delegations = await Delegation.find({
       strategyId,
       isActive: true,
       expiry: { $gt: now },
-    };
-    if (lastTriggeredAt) {
-      delegationFilter.$or = [
-        { lastExecutedAt: null },
-        { lastExecutedAt: { $lt: lastTriggeredAt } },
-      ];
-    }
-
-    const delegations = await Delegation.find(delegationFilter).lean();
+      lastExecutedAt: null,
+    }).lean();
     console.log(`[Executor] Found ${delegations.length} delegations for strategy ${strategyId}`);
 
     for (const d of delegations) {
