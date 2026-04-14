@@ -4,11 +4,11 @@ import { parseUnits, createPublicClient, http } from "viem";
 import { base, mainnet, arbitrum, optimism, polygon } from "viem/chains";
 
 const CHAIN_CLIENTS: Record<number, ReturnType<typeof createPublicClient>> = {
-  1:     createPublicClient({ chain: mainnet,   transport: http("https://eth.llamarpc.com") }),
-  8453:  createPublicClient({ chain: base,      transport: http("https://mainnet.base.org") }),
-  42161: createPublicClient({ chain: arbitrum,  transport: http("https://arb1.arbitrum.io/rpc") }),
-  10:    createPublicClient({ chain: optimism,  transport: http("https://mainnet.optimism.io") }),
-  137:   createPublicClient({ chain: polygon,   transport: http("https://polygon-rpc.com") }),
+  1:     createPublicClient({ chain: mainnet,   transport: http("https://eth.llamarpc.com") }) as never,
+  8453:  createPublicClient({ chain: base,      transport: http("https://mainnet.base.org") }) as never,
+  42161: createPublicClient({ chain: arbitrum,  transport: http("https://arb1.arbitrum.io/rpc") }) as never,
+  10:    createPublicClient({ chain: optimism,  transport: http("https://mainnet.optimism.io") }) as never,
+  137:   createPublicClient({ chain: polygon,   transport: http("https://polygon-rpc.com") }) as never,
 };
 
 const DECIMALS_ABI = [
