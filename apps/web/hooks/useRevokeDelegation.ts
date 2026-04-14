@@ -1,11 +1,13 @@
 "use client";
 import { useState } from "react";
 import { useAccount } from "wagmi";
+import { useQueryClient } from "@tanstack/react-query";
 
 export type RevokeStatus = "idle" | "revoking" | "done" | "error";
 
 export function useRevokeDelegation() {
   const { address } = useAccount();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState<RevokeStatus>("idle");
   const [error, setError] = useState<string | null>(null);
 
@@ -32,6 +34,7 @@ export function useRevokeDelegation() {
       }
 
       setStatus("done");
+      queryClient.invalidateQueries({ queryKey: ["my-delegations"] });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setError(msg);

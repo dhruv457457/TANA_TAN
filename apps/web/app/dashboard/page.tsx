@@ -64,10 +64,10 @@ function ProtocolMini({ protocol, logoUrl }: { protocol: string; logoUrl: string
 function ProfileSection({ address, isOwn }: { address: string; isOwn: boolean }) {
   const [data, setData] = useState<{
     profile: UserProfileData | null;
-    strategies: { _id: string; vaultName: string; protocol: string; chainName: string; apy: number; followerCount: number }[];
+    strategies: { _id: string; vaultName: string; protocol: string; chainName: string; apy: number; followerCount: number; protocolLogoUri?: string }[];
     followingCount: number;
     followersCount: number;
-    followingStrategies: { _id: string; protocol: string; vaultName: string; chainName: string; apy: number }[];
+    followingStrategies: { _id: string; protocol: string; vaultName: string; chainName: string; apy: number; protocolLogoUri?: string }[];
   } | null>(null);
   const [loading, setLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);

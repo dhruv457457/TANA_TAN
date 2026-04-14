@@ -148,15 +148,24 @@ export async function executeStrategy(
     if (!strategy) throw new Error(`Strategy ${strategyId} not found`);
 
     const now = Math.floor(Date.now() / 1000);
-    
-    // Execute ALL delegations that have never been executed (lastExecutedAt: null)
-    // Each new delegation will be executed exactly once when created
-    const delegations = await Delegation.find({
+
+    // Execute delegations that are due:
+    //   - never run before (lastExecutedAt: null), OR
+    //   - last ran before the most recent alpha trigger (re-copy on re-trigger)
+    const delegationQuery: Record<string, unknown> = {
       strategyId,
       isActive: true,
       expiry: { $gt: now },
-      lastExecutedAt: null,
-    }).lean();
+    };
+    if (lastTriggeredAt) {
+      delegationQuery.$or = [
+        { lastExecutedAt: null },
+        { lastExecutedAt: { $lt: lastTriggeredAt } },
+      ];
+    } else {
+      delegationQuery.lastExecutedAt = null;
+    }
+    const delegations = await Delegation.find(delegationQuery).lean();
     console.log(`[Executor] Found ${delegations.length} delegations for strategy ${strategyId}`);
 
     for (const d of delegations) {
@@ -264,7 +273,18 @@ export async function executeStrategy(
         })) as bigint;
         console.log(`[Executor] Follower ${follower} USDC balance: ${followerUsdcBalance} (need ${amountIn})`);
         if (followerUsdcBalance < amountIn) {
-          throw new Error(`Insufficient USDC: has ${followerUsdcBalance}, needs ${amountIn}`);
+          // Not enough USDC yet — skip silently. Do NOT log to DB or Telegram;
+          // lastExecutedAt stays null so the poller will retry automatically
+          // once the follower funds their smart account.
+          const humanHas = Number(followerUsdcBalance) / 1e6;
+          const humanNeeds = Number(amountIn) / 1e6;
+          console.warn(
+            `[Executor] Skipping ${follower}: insufficient USDC ` +
+            `(has $${humanHas.toFixed(4)}, needs $${humanNeeds.toFixed(4)}). ` +
+            `Will retry next poll once funded.`
+          );
+          results.push({ follower, status: "failed", error: `Insufficient USDC — fund smart account with ≥ $${humanNeeds} USDC` });
+          continue;
         }
 
         // ── Step 1: Delegated USDC transfer — follower → relayer ──────────

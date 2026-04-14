@@ -7,7 +7,11 @@
       "Bash(python3 -c \" import json, sys data = json.load\\(sys.stdin\\) vaults = data if isinstance\\(data, list\\) else data.get\\('vaults', data.get\\('data', []\\)\\) for v in vaults[:30]: name = v.get\\('name',''\\) addr = v.get\\('address',''\\) proto = v.get\\('protocolName', v.get\\('protocol',''\\)\\) print\\(f'{proto} | {name} | {addr}'\\) \")",
       "Bash(curl -s \"https://earn.li.fi/v1/earn/vaults?chainId=8453\")",
       "Bash(python3 -c \" import json, sys data = json.load\\(sys.stdin\\) vaults = data.get\\('data', []\\) for v in vaults: name = v.get\\('name',''\\) addr = v.get\\('address',''\\) proto = v.get\\('protocol',{}\\).get\\('name',''\\) if 'steak' in name.lower\\(\\) or 'steak' in proto.lower\\(\\): apy = v.get\\('analytics',{}\\).get\\('apy',{}\\).get\\('total',0\\) print\\(f'{proto} | {name} | {addr} | APY:{apy}'\\) \")",
-      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); vaults=data.get\\('data',[]\\); [print\\(v.get\\('protocol',{}\\).get\\('name',''\\)+'|'+v.get\\('name',''\\)+'|'+v.get\\('address',''\\)\\) for v in vaults if 'steak' in v.get\\('name',''\\).lower\\(\\)]\")"
+      "Bash(python3 -c \"import json,sys; data=json.load\\(sys.stdin\\); vaults=data.get\\('data',[]\\); [print\\(v.get\\('protocol',{}\\).get\\('name',''\\)+'|'+v.get\\('name',''\\)+'|'+v.get\\('address',''\\)\\) for v in vaults if 'steak' in v.get\\('name',''\\).lower\\(\\)]\")",
+      "Bash(curl -s \"https://earn.li.fi/v1/earn/vaults?chainId=8453&limit=2\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); v=d['data'][0]; print\\('VAULT KEYS:', list\\(v.keys\\(\\)\\)\\); print\\('address:', v.get\\('address'\\)\\); print\\('underlyingTokens:', v.get\\('underlyingTokens'\\)\\); print\\('lpTokens:', v.get\\('lpTokens'\\)\\)\")",
+      "Bash(node -e \"const d=require\\('fs'\\).readFileSync\\('/dev/stdin','utf8'\\); const j=JSON.parse\\(d\\); const v=j.data[0]; console.log\\('VAULT KEYS:', Object.keys\\(v\\).join\\(', '\\)\\); console.log\\('address:', v.address\\); console.log\\('underlyingTokens:', JSON.stringify\\(v.underlyingTokens\\)\\); console.log\\('lpTokens:', JSON.stringify\\(v.lpTokens\\)\\);\")",
+      "Bash(node -e ':*)"
     ]
   }
 }

@@ -1,6 +1,19 @@
 import { NextRequest, NextResponse } from "next/server";
 import { fetchVaultDetail, fetchComposerQuote } from "@/lib/lifi";
-import { parseUnits } from "viem";
+import { parseUnits, createPublicClient, http } from "viem";
+import { base, mainnet, arbitrum, optimism, polygon } from "viem/chains";
+
+const CHAIN_CLIENTS: Record<number, ReturnType<typeof createPublicClient>> = {
+  1:     createPublicClient({ chain: mainnet,   transport: http("https://eth.llamarpc.com") }),
+  8453:  createPublicClient({ chain: base,      transport: http("https://mainnet.base.org") }),
+  42161: createPublicClient({ chain: arbitrum,  transport: http("https://arb1.arbitrum.io/rpc") }),
+  10:    createPublicClient({ chain: optimism,  transport: http("https://mainnet.optimism.io") }),
+  137:   createPublicClient({ chain: polygon,   transport: http("https://polygon-rpc.com") }),
+};
+
+const DECIMALS_ABI = [
+  { name: "decimals", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint8" }] },
+] as const;
 
 const TANA_RELAY_SECRET = process.env.TANA_RELAY_SECRET ?? "";
 
@@ -50,10 +63,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: `Could not fetch vault details: ${msg}` }, { status: 502 });
   }
 
-  // Vault share tokens (LP tokens) use 18 decimals by default — NOT 6 like stablecoins.
-  // The underlying asset (e.g. USDC) uses 6 decimals, but the vault share token
-  // (e.g. PT-apxUSD, morpho shares) virtually always uses 18 decimals.
-  const vaultDecimals: number = vaultDetail.lpTokens?.[0]?.decimals ?? 18;
+  // Read vault token decimals on-chain — lpTokens[] is often empty so we can't trust it.
+  // aUSDC = 6, Morpho shares = 18, etc.
+  let vaultDecimals = vaultDetail.lpTokens?.[0]?.decimals as number | undefined;
+  if (vaultDecimals === undefined) {
+    try {
+      const client = CHAIN_CLIENTS[chainId];
+      if (client) {
+        vaultDecimals = await client.readContract({
+          address: vaultAddress as `0x${string}`,
+          abi: DECIMALS_ABI,
+          functionName: "decimals",
+        }) as number;
+        console.log("[withdraw] On-chain vault decimals:", vaultDecimals);
+      }
+    } catch (err) {
+      console.warn("[withdraw] Could not read vault decimals on-chain:", err);
+    }
+    vaultDecimals ??= 18; // final fallback
+  }
 
   // Convert share amount (decimal string) to smallest unit using parseUnits
   // (avoids floating-point precision loss that BigInt(Math.round(...)) causes at 18 decimals)

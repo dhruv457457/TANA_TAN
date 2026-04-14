@@ -11,28 +11,28 @@ import { useRef, useState } from "react";
 
 const FEATURES = [
   {
-    icon: "\u{1F9E0}",
+    icon: "📊",
     title: "AI Vault Discovery",
     desc: "Chat with TANA in plain English. Find the best yield across 672+ vaults instantly.",
     color: "#2F7EE5",
     tag: "Powered by Claude",
   },
   {
-    icon: "\u{1F4CB}",
+    icon: "📋",
     title: "1-Click Copy Trading",
     desc: "Grant permission once. Backend auto-executes every time your alpha moves funds.",
     color: "#F5B731",
     tag: "ERC-7715",
   },
   {
-    icon: "\u{1F517}",
+    icon: "🔗",
     title: "Cross-Chain Yield",
-    desc: "Deploy across 15+ chains. Ethereum, Base, Arbitrum, Optimism \u2014 all in one click.",
+    desc: "Deploy across 15+ chains. Ethereum, Base, Arbitrum, Optimism — all in one click.",
     color: "#4CAF82",
     tag: "LI.FI Composer",
   },
   {
-    icon: "\u26A1",
+    icon: "⚡",
     title: "LI.FI Earn Powered",
     desc: "Real-time APY, TVL, portfolio tracking. 20+ protocols unified under one API.",
     color: "#F06292",
@@ -321,11 +321,15 @@ export default function Home() {
 
   return (
     <div className="flex flex-col h-screen bg-[#FAF6EE]">
-      {/* Background blobs */}
+      {/* Background blobs and protocol logos */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -top-40 -left-40 w-[600px] h-[600px] rounded-full bg-[#F5B731]/10 blur-3xl" />
         <div className="absolute top-1/2 -right-40 w-[400px] h-[400px] rounded-full bg-[#4CAF82]/5 blur-3xl" />
         <div className="absolute -bottom-40 left-1/3 w-[500px] h-[500px] rounded-full bg-[#F5B731]/5 blur-3xl" />
+        {/* Protocol logos as background images */}
+        <div className="absolute top-[15%] left-[5%] w-16 h-16 rounded-full opacity-20" style={{ backgroundImage: 'url(https://assets-currency.kucoin.com/673b2a990eb041000129b2d7_logo-MORPHO.png)', backgroundSize: 'contain', backgroundRepeat: 'no-repeat' }} />
+        <div className="absolute top-[25%] right-[8%] w-14 h-14 rounded-full opacity-15" style={{ backgroundImage: 'url(https://s2.coinmarketcap.com/static/img/coins/64x64/7278.png)', backgroundSize: 'contain', backgroundRepeat: 'no-repeat' }} />
+        <div className="absolute bottom-[20%] left-[15%] w-12 h-12 rounded-full opacity-15" style={{ backgroundImage: 'url(https://chainbroker.io/_next/image/?url=https%3A%2F%2Fstatic.chainbroker.io%2Fmediafiles%2Fprojects%2Fyo-protocol%2Fyo.jpg&w=768&q=75)', backgroundSize: 'contain', backgroundRepeat: 'no-repeat' }} />
       </div>
 
       <Navbar />

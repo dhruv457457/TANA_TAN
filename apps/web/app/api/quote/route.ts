@@ -32,7 +32,7 @@ export async function POST(request: NextRequest) {
   });
 
   try {
-    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
+    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY! };
 
     const res = await fetch(`${COMPOSER_BASE}/v1/quote?${params}`, { headers });
     const json = await res.json();

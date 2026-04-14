@@ -103,6 +103,21 @@ export function ExecutionHistory({ address }: Props) {
       {logs.slice(0, 20).map((log, i) => {
         const explorer = EXPLORER_BY_CHAIN[log.chainId] ?? EXPLORER_BY_CHAIN[8453];
         const chainName = CHAIN_NAMES[log.chainId] ?? "Chain";
+        const isLowFunds = log.status === "failed" && log.error?.toLowerCase().includes("insufficient usdc");
+
+        const borderColor = log.status === "success"
+          ? "border-[#4CAF82]"
+          : isLowFunds
+            ? "border-[#F5A623]"
+            : "border-[#F06292]";
+
+        const dotBg = log.status === "success"
+          ? "bg-[#4CAF82]"
+          : isLowFunds
+            ? "bg-[#F5A623]"
+            : "bg-[#F06292]";
+
+        const dotIcon = log.status === "success" ? "✓" : isLowFunds ? "!" : "✗";
 
         return (
           <motion.div
@@ -110,19 +125,13 @@ export function ExecutionHistory({ address }: Props) {
             initial={{ opacity: 0, x: -10 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: i * 0.05 }}
-            className={`flex items-center gap-3 p-3 rounded-xl border-2 bg-white ${
-              log.status === "success"
-                ? "border-[#4CAF82]"
-                : "border-[#F06292]"
-            }`}
+            className={`flex items-center gap-3 p-3 rounded-xl border-2 bg-white ${borderColor}`}
           >
             {/* Status dot */}
             <div
-              className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0 ${
-                log.status === "success" ? "bg-[#4CAF82]" : "bg-[#F06292]"
-              }`}
+              className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-black shrink-0 ${dotBg}`}
             >
-              {log.status === "success" ? "✓" : "✗"}
+              {dotIcon}
             </div>
 
             {/* Info */}
@@ -139,7 +148,13 @@ export function ExecutionHistory({ address }: Props) {
                 </span>
               </div>
               {log.error && (
-                <p className="text-xs text-[#F06292] mt-0.5 truncate">{log.error}</p>
+                isLowFunds ? (
+                  <p className="text-xs text-[#F5A623] mt-0.5">
+                    Low USDC balance — top up your smart account to auto-copy
+                  </p>
+                ) : (
+                  <p className="text-xs text-[#F06292] mt-0.5 truncate">{log.error}</p>
+                )
               )}
               {log.sweepHash && (
                 <a

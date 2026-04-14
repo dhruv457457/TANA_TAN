@@ -1,11 +1,21 @@
 "use client";
 import { useState } from "react";
 import { motion } from "framer-motion";
+import { useReadContract } from "wagmi";
+import { formatUnits } from "viem";
 import { usePortfolio } from "@/hooks/usePortfolio";
 import { useMyDelegations } from "@/hooks/useMyDelegations";
 import { useWithdraw } from "@/hooks/useWithdraw";
 import { useRevokeDelegation } from "@/hooks/useRevokeDelegation";
 import type { PortfolioPosition } from "@/types";
+
+const BALANCE_OF_ABI = [
+  { name: "balanceOf", type: "function", stateMutability: "view", inputs: [{ name: "account", type: "address" }], outputs: [{ name: "", type: "uint256" }] },
+] as const;
+
+const DECIMALS_ABI = [
+  { name: "decimals", type: "function", stateMutability: "view", inputs: [], outputs: [{ name: "", type: "uint8" }] },
+] as const;
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "Never";
@@ -34,7 +44,31 @@ function WithdrawModal({
   onClose: () => void;
 }) {
   const { withdraw, status, error, reset } = useWithdraw();
-  const [amount, setAmount] = useState(pos.balance && parseFloat(pos.balance) > 0 ? pos.balance : "");
+
+  // Read actual on-chain vault token balance — more reliable than LiFi's balanceNative
+  const { data: onChainRawBalance } = useReadContract({
+    address: pos.vaultAddress as `0x${string}`,
+    abi: BALANCE_OF_ABI,
+    functionName: "balanceOf",
+    args: [address as `0x${string}`],
+    chainId: pos.chainId,
+  });
+  const { data: onChainDecimals } = useReadContract({
+    address: pos.vaultAddress as `0x${string}`,
+    abi: DECIMALS_ABI,
+    functionName: "decimals",
+    chainId: pos.chainId,
+  });
+
+  const onChainBalance =
+    onChainRawBalance !== undefined && onChainDecimals !== undefined
+      ? formatUnits(onChainRawBalance as bigint, onChainDecimals as number)
+      : null;
+
+  // Prefer on-chain balance; fall back to LiFi's balanceNative while loading
+  const maxBalance = onChainBalance ?? (pos.balance && parseFloat(pos.balance) > 0 ? pos.balance : "");
+
+  const [amount, setAmount] = useState("");
   const [txHash, setTxHash] = useState<string | null>(null);
 
   const isBusy = status === "quoting" || status === "approving" || status === "sending";
@@ -138,14 +172,21 @@ function WithdrawModal({
 
             <div className="space-y-3">
               <div>
-                <label className="text-xs text-[#888888] mb-1 block">Amount (tokens)</label>
+                <label className="text-xs text-[#888888] mb-1 block">
+                  Amount (tokens)
+                  {maxBalance && (
+                    <span className="ml-1 text-[#888888]">
+                      — max: {parseFloat(maxBalance).toFixed(6)}
+                    </span>
+                  )}
+                </label>
                 <input
                   type="number"
                   min="0"
-                  step="0.01"
+                  step="0.000001"
                   value={amount}
                   onChange={(e) => setAmount(e.target.value)}
-                  placeholder="0.00"
+                  placeholder={maxBalance ? parseFloat(maxBalance).toFixed(6) : "0.00"}
                   disabled={isBusy}
                   className="w-full bg-[#FAF6EE] border-2 border-[#1A1A1A] rounded-lg px-3 py-2 text-sm text-[#1A1A1A] disabled:opacity-60"
                 />
@@ -172,11 +213,11 @@ function WithdrawModal({
 
               <div className="flex gap-2">
                 <button
-                  onClick={() => setAmount(pos.balance && parseFloat(pos.balance) > 0 ? pos.balance : "0")}
-                  disabled={isBusy}
+                  onClick={() => setAmount(maxBalance || "0")}
+                  disabled={isBusy || !maxBalance}
                   className="flex-1 py-2 rounded-lg bg-[#FAF6EE] border-2 border-[#D0CFCF] text-xs text-[#888888] hover:border-[#1A1A1A] transition-colors disabled:opacity-50"
                 >
-                  Max
+                  {onChainBalance ? "Max" : "Loading…"}
                 </button>
                 <button
                   onClick={handleWithdraw}

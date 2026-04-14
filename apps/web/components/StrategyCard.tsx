@@ -8,6 +8,7 @@ import { useRevokeDelegation } from "@/hooks/useRevokeDelegation";
 import { useUserProfile } from "@/hooks/useUserProfile";
 import { LiFiBadge } from "./LiFiBadge";
 import { addressToColor } from "@/lib/protocolLogos";
+import { getProtocolLogo } from "@/lib/logos";
 import Image from "next/image";
 
 const RISK_STYLE = {
@@ -37,8 +38,9 @@ function timeAgo(dateStr: string | null | undefined): string {
 
 function ProtocolAvatar({ protocol, logoUri, size = 44 }: { protocol: string; logoUri?: string; size?: number }) {
   const [imgError, setImgError] = useState(false);
-  // Use LiFi Earn API logoUri; fall back to colored initials
-  const logoUrl = !imgError ? (logoUri ?? null) : null;
+  // Use LiFi Earn API logoUri, then static asset map, then colored initials
+  // Use || not ?? so empty string "" also falls through to the static map
+  const logoUrl = !imgError ? (logoUri || getProtocolLogo(protocol) || null) : null;
   const initials = protocol.replace(/-v\d+$/, "").slice(0, 2).toUpperCase();
 
   if (logoUrl) {

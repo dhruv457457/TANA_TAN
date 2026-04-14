@@ -6,6 +6,7 @@ import { useTanaStore } from "@/store";
 import { useExecute } from "@/hooks/useExecute";
 import { PostStrategyModal } from "@/components/PostStrategyModal";
 import type { AllocationPlan } from "@/types";
+import { getProtocolLogo } from "@/lib/logos";
 
 const STATUS_LABEL: Record<string, string> = {
   switching: "Switching chain…",
@@ -71,9 +72,9 @@ export function VaultCard({ plan, index }: { plan: AllocationPlan; index: number
 
       {/* Header */}
       <div className="flex items-start gap-3 mb-4">
-        {vault.protocolLogoUri ? (
+        {(vault.protocolLogoUri || getProtocolLogo(vault.protocol)) ? (
           <img
-            src={vault.protocolLogoUri}
+            src={vault.protocolLogoUri || getProtocolLogo(vault.protocol)}
             alt={vault.protocol}
             className="w-10 h-10 rounded-lg border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A] object-contain bg-white shrink-0"
           />

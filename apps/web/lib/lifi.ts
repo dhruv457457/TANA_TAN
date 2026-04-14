@@ -30,12 +30,19 @@ const CHAIN_ID_TO_NETWORK: Record<number, string> = {
 const earnClient = axios.create({ 
   baseURL: EARN_BASE, 
   timeout: 10000,
-  headers: () => ({ "x-lifi-api-key": getLifiApiKey() })
 });
+earnClient.interceptors.request.use((config) => {
+  config.headers["x-lifi-api-key"] = getLifiApiKey();
+  return config;
+});
+
 const composerClient = axios.create({ 
   baseURL: COMPOSER_BASE, 
   timeout: 15000,
-  headers: () => ({ "x-lifi-api-key": getLifiApiKey() })
+});
+composerClient.interceptors.request.use((config) => {
+  config.headers["x-lifi-api-key"] = getLifiApiKey();
+  return config;
 });
 
 export async function fetchVaults(params?: {

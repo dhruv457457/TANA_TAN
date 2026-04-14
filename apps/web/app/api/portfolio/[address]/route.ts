@@ -67,7 +67,7 @@ async function getAllVaults(): Promise<VaultEntry[]> {
   }
   try {
     const EARN_BASE = "https://earn.li.fi";
-    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
+    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY! };
 
     const vaults: VaultEntry[] = [];
     let cursor: string | undefined;
@@ -223,7 +223,7 @@ async function fetchOnChainPositions(walletAddress: string): Promise<PortfolioPo
 
   // Enrich names + APY from LI.FI Earn for found positions
   if (positions.length > 0) {
-    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
+    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY! };
 
     type VaultData = {
       address?: string;
@@ -292,7 +292,7 @@ export async function GET(
     return NextResponse.json({ error: "Invalid address" }, { status: 400 });
   }
 
-  const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
+  const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY! };
 
   try {
     // Try LI.FI portfolio API first (fast when indexed)
@@ -315,7 +315,8 @@ export async function GET(
           const assetSymbol = p.asset?.symbol ?? "";
           const chainId = p.chainId ?? 1;
           const chainName = CHAIN_NAMES[chainId] ?? "Chain";
-          const vaultAddress = p.vaultAddress ?? p.asset?.address ?? "";
+          // LI.FI portfolio API returns `address` (vault contract), NOT `vaultAddress`
+          const vaultAddress = p.address ?? p.vaultAddress ?? "";
 
           // LI.FI portfolio fields:
           //   balanceNative = human-readable token amount (e.g. "407393.89")
@@ -362,7 +363,8 @@ export async function GET(
             address?: string;
             name?: string;
             protocol?: string | { name?: string; url?: string };
-            asset?: { symbol?: string };
+            // LiFi vaults API uses `underlyingTokens`, NOT `asset`
+            underlyingTokens?: { address?: string; symbol?: string; decimals?: number }[];
             tags?: string[];
             isRedeemable?: boolean;
             isTransactional?: boolean;
@@ -374,7 +376,7 @@ export async function GET(
           for (const chainId of [...new Set(positions.map(p => p.chainId))]) {
             try {
               const vRes = await fetch(
-                `${EARN_BASE}/v1/earn/vaults?chainId=${chainId}&limit=200`,
+                `${EARN_BASE}/v1/earn/vaults?chainId=${chainId}&limit=100`,
                 { headers }
               );
               if (vRes.ok) {
@@ -393,28 +395,23 @@ export async function GET(
                 vault.address?.toLowerCase() === pos.vaultAddress.toLowerCase()
               );
               
-              // Second try: match by protocol + asset
+              // Second try: match by protocol + underlying asset symbol
+              // NOTE: LiFi vaults API uses `underlyingTokens[0].symbol`, not `asset.symbol`
               if (!v) {
-                console.log(`[portfolio] No LI.FI vault match by address for ${pos.vaultAddress}, trying protocol match`);
                 const matches = vaults.filter((vault) => {
-                  const vaultProtocol = typeof vault.protocol === 'string' 
-                    ? vault.protocol 
+                  const vaultProtocol = typeof vault.protocol === 'string'
+                    ? vault.protocol
                     : vault.protocol?.name ?? '';
-                  const protocolMatch = vaultProtocol.toLowerCase().includes(pos.protocol.toLowerCase());
-                  const assetMatch = vault.asset?.symbol?.toLowerCase() === pos.asset.toLowerCase();
+                  const protocolMatch = vaultProtocol.toLowerCase().includes(pos.protocol.toLowerCase().split("-")[0]);
+                  const assetMatch = vault.underlyingTokens?.[0]?.symbol?.toLowerCase() === pos.asset.toLowerCase();
                   return protocolMatch && assetMatch;
                 });
-                
-                // Prefer Aave over Morpho
-                v = matches.find((vault) => {
-                  const vaultProtocol = typeof vault.protocol === 'string' 
-                    ? vault.protocol 
-                    : vault.protocol?.name ?? '';
-                  return vaultProtocol.toLowerCase().includes('aave');
-                }) ?? matches[0];
-                
+
+                v = matches[0];
                 if (v) {
-                  console.log(`[portfolio] LI.FI matched to ${v.name}`);
+                  console.log(`[portfolio] LI.FI matched by protocol+asset to ${v.name} (${v.address})`);
+                } else {
+                  console.log(`[portfolio] No match for protocol=${pos.protocol} asset=${pos.asset} on chain ${pos.chainId}`);
                 }
               }
               

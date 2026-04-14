@@ -78,7 +78,7 @@ export async function GET(request: NextRequest) {
   if (chainId) params.set("chainId", chainId);
 
   try {
-    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
+    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY! };
 
     const res = await fetch(`${EARN_BASE}/v1/earn/vaults?${params}`, {
       headers,

@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
 
   if (strategies.length === 0) return NextResponse.json([]);
 
-  const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
+  const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY! };
 
   // Batch-fetch vault lists per unique chainId (one request per chain, not per strategy)
   const uniqueChainIds = [...new Set(strategies.map((s) => s.chainId as number))];
