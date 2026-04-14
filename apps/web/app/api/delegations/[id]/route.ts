@@ -40,9 +40,9 @@ export async function PATCH(
   // Revoke: set isActive = false
   await Delegation.findByIdAndUpdate(id, { isActive: false });
 
-  // Decrement follower count on the strategy
+  // Decrement follower count + subtract from totalValueManaged
   await Strategy.findByIdAndUpdate(delegation.strategyId, {
-    $inc: { followerCount: -1 },
+    $inc: { followerCount: -1, totalValueManaged: -(delegation.amount ?? 100) },
   });
 
   return NextResponse.json({ success: true, message: "Delegation revoked" });

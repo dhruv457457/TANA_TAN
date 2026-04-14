@@ -45,8 +45,10 @@ export async function POST(req: NextRequest) {
       isActive: true,
     });
 
-    // Increment follower count on the strategy
-    await Strategy.findByIdAndUpdate(strategyId, { $inc: { followerCount: 1 } });
+    // Increment follower count + add to totalValueManaged
+    await Strategy.findByIdAndUpdate(strategyId, {
+      $inc: { followerCount: 1, totalValueManaged: amount ?? 100 },
+    });
 
     return NextResponse.json(delegation, { status: 201 });
   } catch (err) {

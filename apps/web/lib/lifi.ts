@@ -3,7 +3,14 @@ import type { Vault, PortfolioPosition, ComposerQuote } from "@/types";
 
 const EARN_BASE = "https://earn.li.fi";
 const COMPOSER_BASE = "https://li.quest";
-const LIFI_API_KEY = process.env.LIFI_API_KEY ?? "";
+
+function getLifiApiKey(): string {
+  const key = process.env.LIFI_API_KEY;
+  if (!key) {
+    throw new Error("LIFI_API_KEY is required. Set it in .env.local for local or Railway vars for production.");
+  }
+  return key;
+}
 
 // LI.FI Earn API uses network names (not chainIds) in vault detail endpoints
 const CHAIN_ID_TO_NETWORK: Record<number, string> = {
@@ -23,12 +30,12 @@ const CHAIN_ID_TO_NETWORK: Record<number, string> = {
 const earnClient = axios.create({ 
   baseURL: EARN_BASE, 
   timeout: 10000,
-  headers: LIFI_API_KEY ? { "x-lifi-api-key": LIFI_API_KEY } : {}
+  headers: () => ({ "x-lifi-api-key": getLifiApiKey() })
 });
 const composerClient = axios.create({ 
   baseURL: COMPOSER_BASE, 
   timeout: 15000,
-  headers: LIFI_API_KEY ? { "x-lifi-api-key": LIFI_API_KEY } : {}
+  headers: () => ({ "x-lifi-api-key": getLifiApiKey() })
 });
 
 export async function fetchVaults(params?: {
@@ -51,27 +58,35 @@ export async function fetchVaultDetail(
   chainId: number,
   address: string
 ): Promise<Vault> {
-  try {
-    const { data } = await earnClient.get("/v1/earn/vaults", {
-      params: { chainId },
-    });
-    const vaults = Array.isArray(data) ? data : (data?.data ?? []);
-    if (!Array.isArray(vaults) || !vaults.length) {
-      throw new Error(`No vaults found on chain ${chainId}`);
+  const network = CHAIN_ID_TO_NETWORK[chainId];
+
+  // 1. Try the direct single-vault endpoint first (fast, no pagination needed)
+  if (network) {
+    try {
+      const { data } = await earnClient.get(
+        `/v1/earn/vaults/${encodeURIComponent(network)}/${address.toLowerCase()}`
+      );
+      if (data && data.address) return data as Vault;
+    } catch {
+      // fall through to paginated search
     }
-    const vault = vaults.find(
-      (v: Vault) => v.address.toLowerCase() === address.toLowerCase()
-    );
-    if (!vault) {
-      throw new Error(`Vault ${address} not found on chain ${chainId}`);
-    }
-    return vault;
-  } catch (err) {
-    if (axios.isAxiosError(err)) {
-      throw new Error(`LI.FI API error: ${err.response?.status ?? 'network error'} - ${err.message}`);
-    }
-    throw err;
   }
+
+  // 2. Fall back: paginate through all vaults on this chain to find it
+  let cursor: string | undefined;
+  do {
+    const params: Record<string, string | number> = { chainId, limit: 50 };
+    if (cursor) params.cursor = cursor;
+    const { data } = await earnClient.get("/v1/earn/vaults", { params });
+    const vaults: Vault[] = Array.isArray(data) ? data : (data?.data ?? []);
+    const found = vaults.find(
+      (v) => v.address.toLowerCase() === address.toLowerCase()
+    );
+    if (found) return found;
+    cursor = data?.nextCursor;
+  } while (cursor);
+
+  throw new Error(`Vault ${address} not found on chain ${chainId}`);
 }
 
 export async function fetchPortfolioPositions(

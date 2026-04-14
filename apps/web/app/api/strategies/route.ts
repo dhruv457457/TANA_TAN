@@ -35,7 +35,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const {
     author, vaultAddress, chainId, protocol, protocolLogoUri, chainName,
-    vaultName, asset, apy, tvlUsd, riskLabel, pitch,
+    vaultName, asset, apy, tvlUsd, riskLabel, pitch, imageUrl,
   } = body;
 
   if (!author || !vaultAddress || !chainId || !protocol) {
@@ -55,6 +55,7 @@ export async function POST(req: NextRequest) {
     tvlUsd: tvlUsd ?? 0,
     riskLabel: riskLabel ?? "Balanced",
     pitch: pitch ?? "",
+    imageUrl: imageUrl ?? "",
     lastTriggeredAt: new Date(),
   });
 

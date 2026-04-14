@@ -47,6 +47,7 @@ export function ChatInterface() {
   const {
     messages,
     addMessage,
+    clearMessages,
     setIntent,
     allocations,
     setAllocations,
@@ -271,17 +272,29 @@ export function ChatInterface() {
       </div>
 
       {/* Input */}
-      <div className="p-4 border-t-2 border-[#D0CFCF]">
-        <div className="flex gap-3 items-end">
+      <div className="p-4 border-t-2 border-[#D0CFCF] bg-white">
+        <div className="flex gap-2 items-end">
           <textarea
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={handleKeyDown}
             placeholder="Tell TANA what yield you want…"
             rows={1}
-            className="flex-1 resize-none bg-white border-2 border-[#1A1A1A] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] placeholder:text-[#888888] focus:outline-none focus:shadow-[4px_4px_0_#F5B731] transition-shadow"
+            className="flex-1 resize-none bg-[#FAF6EE] border-2 border-[#1A1A1A] rounded-xl px-4 py-3 text-sm text-[#1A1A1A] placeholder:text-[#888888] focus:outline-none focus:shadow-[4px_4px_0_#F5B731] transition-shadow"
             style={{ minHeight: 48, maxHeight: 120 }}
           />
+          {messages.length > 0 && (
+            <motion.button
+              onClick={() => { clearMessages(); setAllocations([]); setIntent(null); }}
+              whileTap={{ scale: 0.95 }}
+              title="Clear chat"
+              className="h-12 w-12 rounded-xl border-2 border-[#D0CFCF] hover:border-[#F06292] bg-white flex items-center justify-center text-[#888888] hover:text-[#F06292] shrink-0 transition-colors"
+            >
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <path d="M1 1l12 12M13 1L1 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+            </motion.button>
+          )}
           <motion.button
             onClick={() => handleSend(input)}
             disabled={!input.trim() || isLoading}
@@ -294,6 +307,11 @@ export function ChatInterface() {
             </svg>
           </motion.button>
         </div>
+        {messages.length > 0 && (
+          <p className="text-[10px] text-[#AAAAAA] mt-1.5 text-right">
+            Press × to clear chat history
+          </p>
+        )}
       </div>
     </div>
   );

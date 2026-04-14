@@ -13,9 +13,6 @@ const NAV_LINKS = [
 
 const USDC_BASE = "0x833589fcd6edb6e08f4c7c32d4f71b54bda02913" as const;
 
-function formatAddress(addr: string): string {
-  return `${addr.slice(0, 6)}…${addr.slice(-4)}`;
-}
 
 export function Navbar() {
   const pathname = usePathname();
@@ -71,20 +68,6 @@ export function Navbar() {
 
       {/* Right side */}
       <div className="flex items-center gap-3">
-        {/* Profile link */}
-        {address && (
-          <Link
-            href={`/profile/${address}`}
-            className="hidden sm:flex items-center gap-1.5 bg-[#FAF6EE] border-2 border-[#D0CFCF] rounded-lg px-3 py-1.5 hover:border-[#1A1A1A] transition-colors"
-          >
-            <div className="w-5 h-5 rounded-full bg-[#F5B731] flex items-center justify-center">
-              <span className="text-[#1A1A1A] text-[8px] font-black">{address.slice(2, 4).toUpperCase()}</span>
-            </div>
-            <span className="text-xs font-bold text-[#1A1A1A] font-mono">
-              {formatAddress(address)}
-            </span>
-          </Link>
-        )}
         {/* USDC Balance */}
         {address && usdcBal && (
           <motion.div

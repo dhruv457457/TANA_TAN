@@ -2,11 +2,10 @@ import { NextRequest, NextResponse } from "next/server";
 import { createPublicClient, http, formatUnits } from "viem";
 import { base, mainnet, arbitrum, optimism, polygon } from "viem/chains";
 import type { PortfolioPosition } from "@/types";
-import fs from "fs";
-import path from "path";
 
 const EARN_BASE = "https://earn.li.fi";
-const LIFI_API_KEY = process.env.LIFI_API_KEY ?? "";
+const LIFI_API_KEY = process.env.LIFI_API_KEY;
+if (!LIFI_API_KEY) throw new Error("LIFI_API_KEY is required");
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const CHAIN_CLIENTS: Record<number, any> = {
@@ -57,23 +56,57 @@ type VaultEntry = {
   tvlUsd?: number;
 };
 
-function loadVaults(): VaultEntry[] {
-  try {
-    const filePath = path.join(process.cwd(), "app", "data", "vaults.json");
-    const raw = fs.readFileSync(filePath, "utf-8");
-    return JSON.parse(raw).vaults ?? [];
-  } catch {
-    return [];
+// Module-level cache — fetched once from LiFi Earn API, reused across requests
+let _vaultCache: VaultEntry[] = [];
+let _vaultCacheTime = 0;
+const VAULT_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+async function getAllVaults(): Promise<VaultEntry[]> {
+  if (_vaultCache.length > 0 && Date.now() - _vaultCacheTime < VAULT_CACHE_TTL) {
+    return _vaultCache;
   }
-}
+  try {
+    const EARN_BASE = "https://earn.li.fi";
+    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
 
-const ALL_VAULTS: VaultEntry[] = loadVaults();
+    const vaults: VaultEntry[] = [];
+    let cursor: string | undefined;
 
-// Group vaults by chain for multicall batching
-const VAULTS_BY_CHAIN: Record<number, VaultEntry[]> = {};
-for (const v of ALL_VAULTS) {
-  if (!VAULTS_BY_CHAIN[v.chainId]) VAULTS_BY_CHAIN[v.chainId] = [];
-  VAULTS_BY_CHAIN[v.chainId].push(v);
+    do {
+      const params = new URLSearchParams({ limit: "100", ...(cursor ? { cursor } : {}) });
+      const res = await fetch(`${EARN_BASE}/v1/earn/vaults?${params}`, { headers });
+      if (!res.ok) break;
+      const body = await res.json();
+      const page: {
+        address: string; chainId: number; network: string;
+        protocol?: { name?: string }; name?: string;
+        underlyingTokens?: { symbol?: string; decimals?: number }[];
+        analytics?: { apy?: { total?: number }; tvl?: { usd?: string } };
+      }[] = Array.isArray(body) ? body : (body.data ?? []);
+
+      for (const v of page) {
+        vaults.push({
+          address: v.address.toLowerCase(),
+          chainId: v.chainId,
+          chainName: v.network ?? String(v.chainId),
+          protocol: v.protocol?.name ?? "unknown",
+          name: v.name ?? "",
+          asset: v.underlyingTokens?.[0]?.symbol ?? "USDC",
+          isStable: true,
+          decimals: v.underlyingTokens?.[0]?.decimals ?? 6,
+          apy: v.analytics?.apy?.total ?? 0,
+          tvlUsd: parseFloat(v.analytics?.tvl?.usd ?? "0"),
+        });
+      }
+      cursor = body.nextCursor;
+    } while (cursor);
+
+    _vaultCache = vaults;
+    _vaultCacheTime = Date.now();
+    return vaults;
+  } catch {
+    return _vaultCache; // return stale cache on error
+  }
 }
 
 const ASSET_DECIMALS: Record<string, number> = {
@@ -162,16 +195,16 @@ async function scanChain(
 async function fetchOnChainPositions(walletAddress: string): Promise<PortfolioPosition[]> {
   const wallet = walletAddress as `0x${string}`;
 
+  // Fetch vault list from LiFi API (cached)
+  const ALL_VAULTS = await getAllVaults();
+  const VAULTS_BY_CHAIN: Record<number, VaultEntry[]> = {};
+  for (const v of ALL_VAULTS) {
+    if (!VAULTS_BY_CHAIN[v.chainId]) VAULTS_BY_CHAIN[v.chainId] = [];
+    VAULTS_BY_CHAIN[v.chainId].push(v);
+  }
+
   console.log(`[fetchOnChainPositions] Starting scan for ${wallet}`);
   console.log(`[fetchOnChainPositions] Vaults to scan:`, Object.entries(VAULTS_BY_CHAIN).map(([c, v]) => `${c}: ${v.length} vaults`));
-
-  // Check if Yo Protocol vault is in our list
-  const yoVault = ALL_VAULTS.find(v => v.address.toLowerCase() === "0x0000000f2eb9f69274678c76222b35eec7588a65");
-  if (yoVault) {
-    console.log(`[fetchOnChainPositions] Yo Protocol vault found: chain ${yoVault.chainId}`);
-  } else {
-    console.log(`[fetchOnChainPositions] Yo Protocol vault NOT in vaults.json!`);
-  }
 
   // One multicall per chain — all chains in parallel
   const chainResults = await Promise.allSettled(
@@ -190,8 +223,7 @@ async function fetchOnChainPositions(walletAddress: string): Promise<PortfolioPo
 
   // Enrich names + APY from LI.FI Earn for found positions
   if (positions.length > 0) {
-    const headers: Record<string, string> = {};
-    if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY;
+    const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
 
     type VaultData = {
       address?: string;
@@ -260,8 +292,7 @@ export async function GET(
     return NextResponse.json({ error: "Invalid address" }, { status: 400 });
   }
 
-  const headers: Record<string, string> = {};
-  if (LIFI_API_KEY) headers["x-lifi-api-key"] = LIFI_API_KEY;
+  const headers: Record<string, string> = { "x-lifi-api-key": LIFI_API_KEY };
 
   try {
     // Try LI.FI portfolio API first (fast when indexed)
@@ -279,74 +310,45 @@ export async function GET(
       console.log(`[portfolio] Raw positions:`, JSON.stringify(raw.slice(0, 2)));
 
       if (raw.length > 0) {
-        // Build a lookup from vaults.json for quick reference
-        const vaultLookupByChain = new Map<number, Map<string, VaultEntry>>();
-        for (const v of ALL_VAULTS) {
-          if (!vaultLookupByChain.has(v.chainId)) vaultLookupByChain.set(v.chainId, new Map());
-          vaultLookupByChain.get(v.chainId)!.set(v.address.toLowerCase(), v);
-        }
-
         const positions: PortfolioPosition[] = raw.map((p) => {
           const protocolName = p.protocolName ?? p.protocol ?? "Unknown Protocol";
           const assetSymbol = p.asset?.symbol ?? "";
           const chainId = p.chainId ?? 1;
           const chainName = CHAIN_NAMES[chainId] ?? "Chain";
-          
-          // LI.FI may return the underlying token address (e.g., USDC) instead of vault address
-          const rawVaultAddress = p.vaultAddress ?? p.asset?.address ?? "";
-          
-          // Check if this address is a known vault in our vaults.json
-          const knownVault = vaultLookupByChain.get(chainId)?.get(rawVaultAddress.toLowerCase());
-          
-          // If not a known vault, try to find a vault by protocol + asset
-          let resolvedVaultAddress = rawVaultAddress;
-          let resolvedProtocol = protocolName;
-          let resolvedName = p.name ?? "";
-          
-          if (!knownVault) {
-            console.log(`[portfolio] Address ${rawVaultAddress} not a known vault, looking up by protocol+asset`);
-            // Find matching vault from vaults.json
-            const chainVaults = ALL_VAULTS.filter((v) => v.chainId === chainId);
-            const match = chainVaults.find((v) => {
-              const protocolMatch = v.protocol.toLowerCase().includes(protocolName.toLowerCase()) ||
-                                   protocolName.toLowerCase().includes(v.protocol.toLowerCase());
-              const assetMatch = v.asset.toLowerCase() === assetSymbol.toLowerCase();
-              return protocolMatch && assetMatch;
-            });
-            
-            if (match) {
-              resolvedVaultAddress = match.address;
-              resolvedProtocol = match.protocol;
-              resolvedName = match.name;
-              console.log(`[portfolio] Resolved to vault ${match.address} (${match.protocol} ${match.name})`);
-            }
-          }
-          
-          // LI.FI portfolio returns: balanceNative (vault tokens), balanceUsd
-          const balanceNative = p.balanceNative ?? p.balance ?? "0";
+          const vaultAddress = p.vaultAddress ?? p.asset?.address ?? "";
+
+          // LI.FI portfolio fields:
+          //   balanceNative = human-readable token amount (e.g. "407393.89")
+          //   balance       = may be raw on-chain units OR human-readable (varies)
+          //   balanceUsd    = USD value — may be null/missing
+          const balanceNative = p.balanceNative ?? "0";
+          const assetDecimals = p.asset?.decimals ?? 6;
+          const rawOnChain = parseFloat(p.balance ?? "0");
+          // If balance looks like raw on-chain (> 1e6 for 6-decimal tokens), normalise it
+          const rawBalanceHuman = rawOnChain > 1_000_000
+            ? rawOnChain / Math.pow(10, assetDecimals)
+            : (rawOnChain > 0 ? rawOnChain : parseFloat(balanceNative));
           const balanceUsd = parseFloat(p.balanceUsd ?? "0");
-          const rawBalance = parseFloat(p.balance ?? "0");
-          const displayBalance = balanceUsd > 0 ? balanceUsd : (rawBalance > 0 ? rawBalance : 0);
-          
-          // Construct a clear name
-          const vaultName = resolvedName 
-            ? `${resolvedName} — ${chainName}`
-            : (assetSymbol ? `${resolvedProtocol} ${assetSymbol} — ${chainName}` : `${resolvedProtocol} Position — ${chainName}`);
-          
+          // Prefer explicit USD value; fall back to native amount (≈ USD for stables)
+          const displayBalance = balanceUsd > 0.01 ? balanceUsd : (rawBalanceHuman > 0 ? rawBalanceHuman : 0);
+
+          const vaultName = p.name
+            ? `${p.name} — ${chainName}`
+            : (assetSymbol ? `${protocolName} ${assetSymbol} — ${chainName}` : `${protocolName} — ${chainName}`);
+
           return {
-            vaultAddress: resolvedVaultAddress,
+            vaultAddress,
             chainId,
-            protocol: resolvedProtocol,
+            protocol: protocolName,
             asset: assetSymbol || "USDC",
             balance: balanceNative,
             balanceUsd: displayBalance,
-            apy: typeof p.apy === "number" ? (p.apy > 1 ? p.apy / 100 : p.apy) : (knownVault?.apy ?? 0) / 100,
+            apy: typeof p.apy === "number" ? (p.apy > 1 ? p.apy / 100 : p.apy) : 0,
             name: vaultName,
             chainName,
             isRedeemable: p.isRedeemable ?? true,
             isTransactional: p.isTransactional ?? true,
             tags: p.tags ?? [],
-            tvlUsd: knownVault?.tvlUsd,
           };
         });
         
@@ -372,7 +374,7 @@ export async function GET(
           for (const chainId of [...new Set(positions.map(p => p.chainId))]) {
             try {
               const vRes = await fetch(
-                `${EARN_BASE}/v1/earn/vaults?chainId=${chainId}`,
+                `${EARN_BASE}/v1/earn/vaults?chainId=${chainId}&limit=200`,
                 { headers }
               );
               if (vRes.ok) {
@@ -418,11 +420,13 @@ export async function GET(
               
               if (v) {
                 const rawApy = v.analytics?.apy?.total ?? 0;
-                pos.apy = rawApy / 100;
+                // LiFi returns APY as percentage (3.77) or decimal (0.0377) — normalise to decimal
+                const normApy = rawApy > 1 ? rawApy / 100 : rawApy;
+                pos.apy = normApy;
                 pos.apyBreakdown = {
-                  base: (v.analytics?.apy?.base ?? rawApy) / 100,
-                  reward: (v.analytics?.apy?.reward ?? 0) / 100,
-                  total: rawApy / 100,
+                  base: (() => { const b = v.analytics?.apy?.base ?? rawApy; return b > 1 ? b / 100 : b; })(),
+                  reward: (() => { const r = v.analytics?.apy?.reward ?? 0; return r > 1 ? r / 100 : r; })(),
+                  total: normApy,
                 };
                 if (v.name) {
                   pos.name = `${v.name} — ${CHAIN_NAMES[pos.chainId] ?? "Chain"}`;
@@ -445,27 +449,9 @@ export async function GET(
           console.log(`[portfolio] LI.FI enrichment failed: ${enrichErr}, continuing with LI.FI data`);
         }
 
-        // ALWAYS also scan on-chain to find vaults LI.FI doesn't track (like Yo Protocol)
-        console.log(`[portfolio] Running on-chain scan to find additional vaults...`);
-        const onChain = await fetchOnChainPositions(address);
-        
-        // Merge LI.FI positions with on-chain scan results, dedup by vaultAddress+chainId
-        const seenKeys = new Set<string>();
-        for (const pos of positions) {
-          seenKeys.add(`${pos.vaultAddress.toLowerCase()}-${pos.chainId}`);
-        }
-        
-        const additionalPositions = onChain.filter(
-          (pos) => !seenKeys.has(`${pos.vaultAddress.toLowerCase()}-${pos.chainId}`)
-        );
-        
-        console.log(`[portfolio] LI.FI: ${positions.length}, On-chain additional: ${additionalPositions.length}`);
-        
-        const allPositions = [...positions, ...additionalPositions];
-        
-        // Filter out positions with zero balance
-        const nonZeroPositions = allPositions.filter((p) => p.balanceUsd > 0);
-        console.log(`[portfolio] Returning ${nonZeroPositions.length} positions total`);
+        // Filter out zero-balance positions and return
+        const nonZeroPositions = positions.filter((p) => p.balanceUsd > 0.01);
+        console.log(`[portfolio] Returning ${nonZeroPositions.length} LI.FI positions`);
         return NextResponse.json(nonZeroPositions);
       }
     }

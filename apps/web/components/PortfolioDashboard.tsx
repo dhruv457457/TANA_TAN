@@ -34,25 +34,31 @@ function WithdrawModal({
   onClose: () => void;
 }) {
   const { withdraw, status, error, reset } = useWithdraw();
-  // Use actual token balance (pos.balance) — NOT balanceUsd which rounds and causes tx failures
-  // e.g. 0.0488 shares rounds to "0.05" USD, but user only owns 0.0488 shares → tx reverts
   const [amount, setAmount] = useState(pos.balance && parseFloat(pos.balance) > 0 ? pos.balance : "");
+  const [txHash, setTxHash] = useState<string | null>(null);
+
+  const isBusy = status === "quoting" || status === "approving" || status === "sending";
+  const isDone = status === "done";
 
   async function handleWithdraw() {
-    if (!amount || parseFloat(amount) <= 0) {
-      return;
-    }
-    await withdraw({
+    if (!amount || parseFloat(amount) <= 0) return;
+    const hash = await withdraw({
       vaultAddress: pos.vaultAddress,
       chainId: pos.chainId,
       amount,
       userAddress: address,
     });
-    if (status === "done") {
-      onClose();
-      reset();
-    }
+    if (hash) setTxHash(hash as string);
   }
+
+  const CHAIN_EXPLORERS: Record<number, string> = {
+    1: "https://etherscan.io/tx/",
+    8453: "https://basescan.org/tx/",
+    42161: "https://arbiscan.io/tx/",
+    10: "https://optimistic.etherscan.io/tx/",
+    137: "https://polygonscan.com/tx/",
+  };
+  const explorerUrl = txHash ? `${CHAIN_EXPLORERS[pos.chainId] ?? "https://basescan.org/tx/"}${txHash}` : null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
@@ -61,57 +67,145 @@ function WithdrawModal({
         animate={{ scale: 1, opacity: 1 }}
         className="w-full max-w-sm rounded-xl border-2 border-[#1A1A1A] bg-white shadow-[5px_5px_0_#1A1A1A] p-5"
       >
-        <h3 className="font-black text-[#1A1A1A] font-display mb-1">Withdraw</h3>
-        <p className="text-xs text-[#888888] mb-4">{pos.name}</p>
+        {/* ── Success state ── */}
+        {isDone ? (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="text-center py-4"
+          >
+            {/* Animated checkmark */}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: [0, 1.2, 1] }}
+              transition={{ duration: 0.5, ease: "easeOut" }}
+              className="w-16 h-16 mx-auto mb-4 rounded-full bg-[#4CAF82] border-2 border-[#1A1A1A] shadow-[3px_3px_0_#1A1A1A] flex items-center justify-center"
+            >
+              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
+                <motion.path
+                  d="M8 16l6 6 10-12"
+                  stroke="white"
+                  strokeWidth="3"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: 1 }}
+                  transition={{ duration: 0.4, delay: 0.3 }}
+                />
+              </svg>
+            </motion.div>
 
-        <div className="space-y-3">
-          <div>
-            <label className="text-xs text-[#888888] mb-1 block">Amount (tokens)</label>
-            <input
-              type="number"
-              min="0"
-              step="0.01"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              placeholder="0.00"
-              className="w-full bg-[#FAF6EE] border-2 border-[#1A1A1A] rounded-lg px-3 py-2 text-sm text-[#1A1A1A]"
-            />
-          </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setAmount(pos.balance && parseFloat(pos.balance) > 0 ? pos.balance : "0")}
-              className="flex-1 py-2 rounded-lg bg-[#FAF6EE] border-2 border-[#D0CFCF] text-xs text-[#888888] hover:border-[#1A1A1A] transition-colors"
-            >
-              Max
-            </button>
-            <button
-              onClick={handleWithdraw}
-              disabled={status === "sending" || status === "quoting" || status === "approving"}
-              className="flex-1 py-2 rounded-lg bg-[#F5B731] border-2 border-[#1A1A1A] text-sm font-black text-[#1A1A1A] disabled:opacity-50"
-            >
-              {status === "quoting" ? "Getting quote…"
-                : status === "approving" ? "Approving…"
-                : status === "sending" ? "Sending…"
-                : "Withdraw"}
-            </button>
-          </div>
-          {error && (
-            <div className="p-2 bg-[#FEF2F2] border border-[#F06292] rounded-lg">
-              <p className="text-xs text-[#F06292] mb-2">{error}</p>
-              <a
-                href={`https://app.morpho.org/base/vault/${pos.vaultAddress}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-[#2F7EE5] underline hover:text-[#1A5BC5]"
-              >
-                Withdraw directly from {pos.protocol}
-              </a>
+            <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}>
+              <p className="text-xl font-black text-[#1A1A1A] font-display mb-1">Withdrawn!</p>
+              <p className="text-sm text-[#888888] mb-1">{pos.name}</p>
+              <p className="text-base font-black text-[#4CAF82] mb-4">{amount} tokens</p>
+
+              {explorerUrl && (
+                <a
+                  href={explorerUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 text-xs text-[#2F7EE5] hover:underline mb-4"
+                >
+                  <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    <path d="M1 6h10M6 1l5 5-5 5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                  View on Explorer
+                </a>
+              )}
+
+              <div className="flex gap-2 mt-2">
+                <button
+                  onClick={() => { reset(); setTxHash(null); }}
+                  className="flex-1 py-2.5 rounded-xl border-2 border-[#1A1A1A] text-sm font-bold text-[#888888] hover:text-[#1A1A1A] hover:border-[#F5B731] transition-colors"
+                >
+                  Withdraw More
+                </button>
+                <button
+                  onClick={onClose}
+                  className="flex-1 py-2.5 rounded-xl bg-[#F5B731] border-2 border-[#1A1A1A] text-sm font-black text-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A] hover:shadow-[4px_4px_0_#1A1A1A] transition-shadow"
+                >
+                  Done
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        ) : (
+          /* ── Form state ── */
+          <>
+            <h3 className="font-black text-[#1A1A1A] font-display mb-1">Withdraw</h3>
+            <p className="text-xs text-[#888888] mb-4">{pos.name}</p>
+
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-[#888888] mb-1 block">Amount (tokens)</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={amount}
+                  onChange={(e) => setAmount(e.target.value)}
+                  placeholder="0.00"
+                  disabled={isBusy}
+                  className="w-full bg-[#FAF6EE] border-2 border-[#1A1A1A] rounded-lg px-3 py-2 text-sm text-[#1A1A1A] disabled:opacity-60"
+                />
+              </div>
+
+              {/* Progress steps */}
+              {isBusy && (
+                <motion.div
+                  initial={{ opacity: 0, y: -4 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="flex items-center gap-2 px-3 py-2 bg-[#FAF6EE] border-2 border-[#F5B731] rounded-lg"
+                >
+                  <svg className="animate-spin w-4 h-4 text-[#F5B731] shrink-0" viewBox="0 0 24 24" fill="none">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                  </svg>
+                  <span className="text-xs font-bold text-[#1A1A1A]">
+                    {status === "quoting" ? "Getting withdrawal quote…"
+                      : status === "approving" ? "Approving token spend…"
+                      : "Sending withdrawal…"}
+                  </span>
+                </motion.div>
+              )}
+
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setAmount(pos.balance && parseFloat(pos.balance) > 0 ? pos.balance : "0")}
+                  disabled={isBusy}
+                  className="flex-1 py-2 rounded-lg bg-[#FAF6EE] border-2 border-[#D0CFCF] text-xs text-[#888888] hover:border-[#1A1A1A] transition-colors disabled:opacity-50"
+                >
+                  Max
+                </button>
+                <button
+                  onClick={handleWithdraw}
+                  disabled={isBusy || !amount || parseFloat(amount) <= 0}
+                  className="flex-1 py-2 rounded-lg bg-[#F5B731] border-2 border-[#1A1A1A] text-sm font-black text-[#1A1A1A] disabled:opacity-50 shadow-[2px_2px_0_#1A1A1A] hover:shadow-[3px_3px_0_#1A1A1A] transition-shadow"
+                >
+                  {isBusy ? "…" : "Withdraw"}
+                </button>
+              </div>
+
+              {error && (
+                <div className="p-2 bg-[#FEF2F2] border border-[#F06292] rounded-lg">
+                  <p className="text-xs text-[#F06292] mb-2">{error}</p>
+                  <a
+                    href={`https://app.morpho.org/base/vault/${pos.vaultAddress}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-[#2F7EE5] underline hover:text-[#1A5BC5]"
+                  >
+                    Withdraw directly from {pos.protocol}
+                  </a>
+                </div>
+              )}
+              <button onClick={onClose} className="w-full text-xs text-[#888888] hover:text-[#1A1A1A]">
+                Cancel
+              </button>
             </div>
-          )}
-          <button onClick={onClose} className="w-full text-xs text-[#888888] hover:text-[#1A1A1A]">
-            Cancel
-          </button>
-        </div>
+          </>
+        )}
       </motion.div>
     </div>
   );

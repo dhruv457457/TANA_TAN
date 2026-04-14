@@ -137,40 +137,47 @@ export function VaultCard({ plan, index }: { plan: AllocationPlan; index: number
           </div>
         ) : isDone ? (
           <div className="space-y-2">
-            <div className="w-full py-2.5 rounded-xl bg-[#4CAF82] border-2 border-[#1A1A1A] text-center text-sm text-white font-bold shadow-[2px_2px_0_#1A1A1A]">
-              ✓ Deposited!
+            {/* Success banner */}
+            <div className="rounded-xl bg-[#E8F5E9] border-2 border-[#4CAF82] p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-6 h-6 rounded-full bg-[#4CAF82] flex items-center justify-center shrink-0">
+                  <svg width="12" height="10" viewBox="0 0 12 10" fill="none">
+                    <path d="M1 5l3 3 7-7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </div>
+                <span className="font-black text-[#4CAF82] text-sm">Deposited into {vault.name}</span>
+              </div>
+              <div className="flex items-center gap-3 text-xs text-[#4CAF82]/80">
+                <span>${amount.toLocaleString()} USDC</span>
+                <span>·</span>
+                <span>{apyPct}% APY</span>
+                <span>·</span>
+                <span>{vault.chainName}</span>
+              </div>
+              {explorerUrl && (
+                <a href={explorerUrl} target="_blank" rel="noopener noreferrer"
+                  className="block mt-2 text-[11px] text-[#2F7EE5] hover:underline font-mono">
+                  View tx →
+                </a>
+              )}
             </div>
-            {explorerUrl ? (
-              <a
-                href={explorerUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-xs text-[#2F7EE5] hover:text-[#1a5fc0] text-center transition-colors"
-              >
-                View on {vault.chainName === "Base" ? "BaseScan" : "Explorer"} →
-              </a>
-            ) : txHash ? (
-              <p className="text-xs text-[#888888] text-center font-mono truncate">
-                {txHash.slice(0, 12)}…{txHash.slice(-8)}
-              </p>
-            ) : null}
+            {/* Route visualization */}
             <button
               onClick={() => setShowRoute((v) => !v)}
-              className="w-full py-1.5 rounded-xl text-xs text-[#2F7EE5] hover:text-[#1a5fc0] border border-[#2F7EE5]/20 hover:border-[#2F7EE5] transition-colors"
+              className="w-full py-2 rounded-xl text-xs font-semibold text-[#2F7EE5] border-2 border-[#2F7EE5]/30 hover:border-[#2F7EE5] hover:bg-[#EFF6FF] transition-colors flex items-center justify-center gap-1"
             >
-              {showRoute ? "Hide" : "Show"} execution route →
+              <span>{showRoute ? "▲" : "▼"}</span>
+              {showRoute ? "Hide" : "Show"} LI.FI execution route
             </button>
+            {/* Share to feed */}
             <button
               onClick={() => setShowPostModal(true)}
-              className="w-full py-1.5 rounded-xl text-xs text-[#F5B731] hover:text-[#E5A720] border border-[#F5B731]/20 hover:border-[#F5B731] transition-colors"
+              className="w-full py-2.5 rounded-xl bg-[#F5B731] hover:bg-[#E5A720] text-[#1A1A1A] text-sm font-black border-2 border-[#1A1A1A] shadow-[2px_2px_0_#1A1A1A] transition-shadow"
             >
-              Share to Feed →
+              Share this strategy to Feed →
             </button>
-            <button
-              onClick={reset}
-              className="w-full py-1 text-xs text-[#888888] hover:text-[#1A1A1A] transition-colors"
-            >
-              Execute again
+            <button onClick={reset} className="w-full py-1 text-xs text-[#AAAAAA] hover:text-[#888888] transition-colors">
+              Deposit again
             </button>
           </div>
         ) : isBusy ? (
