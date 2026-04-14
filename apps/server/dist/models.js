@@ -1,62 +1,6 @@
-import mongoose, { model, Model, Schema, Document } from "mongoose";
-
-export interface IStrategy extends Document {
-  author: string;
-  vaultAddress: string;
-  chainId: number;
-  protocol: string;
-  chainName: string;
-  vaultName: string;
-  asset: string;
-  apy: number;
-  tvlUsd: number;
-  riskLabel: "Safe" | "Balanced" | "Degen";
-  pitch: string;
-  followerCount: number;
-  totalValueManaged: number;
-  isActive: boolean;
-  lastTriggeredAt: Date | null;
-}
-
-export interface IDelegation extends Document {
-  followerAddress: string;
-  strategyId: mongoose.Types.ObjectId;
-  permissionContext: string;
-  delegationManager: string;
-  expiry: number;
-  chainId: number;
-  amount: number;
-  isActive: boolean;
-  lastExecutedAt: Date | null;
-  executionCount: number;
-}
-
-export interface IExecutionLog extends Document {
-  delegationId: mongoose.Types.ObjectId;
-  strategyId: mongoose.Types.ObjectId;
-  followerAddress: string;
-  txHash: string;
-  sweepHash: string;
-  amount: number;
-  vaultAddress: string;
-  chainId: number;
-  status: "success" | "failed";
-  error: string;
-  executedAt: Date;
-}
-
-declare global {
-  var _mongoModels: {
-    Strategy?: Model<IStrategy>;
-    Delegation?: Model<IDelegation>;
-    ExecutionLog?: Model<IExecutionLog>;
-  } | undefined;
-}
-
-const g = global as typeof globalThis & { _mongoModels: typeof global._mongoModels };
-
-const StrategySchema = new Schema<IStrategy>(
-  {
+import { model, Schema } from "mongoose";
+const g = global;
+const StrategySchema = new Schema({
     author: { type: String, required: true, lowercase: true },
     vaultAddress: { type: String, required: true, lowercase: true },
     chainId: { type: Number, required: true },
@@ -72,17 +16,12 @@ const StrategySchema = new Schema<IStrategy>(
     totalValueManaged: { type: Number, default: 0 },
     isActive: { type: Boolean, default: true },
     lastTriggeredAt: { type: Date, default: null },
-  },
-  { timestamps: true }
-);
-
+}, { timestamps: true });
 StrategySchema.index({ author: 1 });
 StrategySchema.index({ followerCount: -1 });
 StrategySchema.index({ apy: -1 });
 StrategySchema.index({ chainId: 1 });
-
-const DelegationSchema = new Schema<IDelegation>(
-  {
+const DelegationSchema = new Schema({
     followerAddress: { type: String, required: true, lowercase: true },
     strategyId: { type: Schema.Types.ObjectId, ref: "Strategy", required: true },
     permissionContext: { type: String, required: true },
@@ -93,15 +32,10 @@ const DelegationSchema = new Schema<IDelegation>(
     isActive: { type: Boolean, default: true },
     lastExecutedAt: { type: Date, default: null },
     executionCount: { type: Number, default: 0 },
-  },
-  { timestamps: true }
-);
-
+}, { timestamps: true });
 DelegationSchema.index({ strategyId: 1, isActive: 1 });
 DelegationSchema.index({ followerAddress: 1 });
-
-const ExecutionLogSchema = new Schema<IExecutionLog>(
-  {
+const ExecutionLogSchema = new Schema({
     delegationId: { type: Schema.Types.ObjectId, ref: "Delegation", required: true },
     strategyId: { type: Schema.Types.ObjectId, ref: "Strategy", required: true },
     followerAddress: { type: String, required: true, lowercase: true },
@@ -113,22 +47,12 @@ const ExecutionLogSchema = new Schema<IExecutionLog>(
     status: { type: String, enum: ["success", "failed"], default: "success" },
     error: { type: String, default: "" },
     executedAt: { type: Date, default: Date.now },
-  },
-  { timestamps: true }
-);
-
+}, { timestamps: true });
 ExecutionLogSchema.index({ followerAddress: 1, executedAt: -1 });
 ExecutionLogSchema.index({ strategyId: 1, executedAt: -1 });
-
 if (!g._mongoModels) {
-  g._mongoModels = {};
+    g._mongoModels = {};
 }
-
-export const Strategy =
-  g._mongoModels.Strategy ?? (g._mongoModels.Strategy = model<IStrategy>("Strategy", StrategySchema));
-
-export const Delegation =
-  g._mongoModels.Delegation ?? (g._mongoModels.Delegation = model<IDelegation>("Delegation", DelegationSchema));
-
-export const ExecutionLog =
-  g._mongoModels.ExecutionLog ?? (g._mongoModels.ExecutionLog = model<IExecutionLog>("ExecutionLog", ExecutionLogSchema));
+export const Strategy = g._mongoModels.Strategy ?? (g._mongoModels.Strategy = model("Strategy", StrategySchema));
+export const Delegation = g._mongoModels.Delegation ?? (g._mongoModels.Delegation = model("Delegation", DelegationSchema));
+export const ExecutionLog = g._mongoModels.ExecutionLog ?? (g._mongoModels.ExecutionLog = model("ExecutionLog", ExecutionLogSchema));

@@ -1,7 +1,7 @@
 // In-memory per-wallet mutex — no Redis needed for hackathon
 // Prevents race conditions when multiple strategies need to execute concurrently
 
-type UnlockFn = () => void;
+type UnlockFn = (() => void) | ((value?: unknown) => void);
 const locks = new Map<string, Promise<UnlockFn>>();
 
 export async function withLock<T>(
@@ -14,9 +14,9 @@ export async function withLock<T>(
   }
 
   // Acquire new lock — create a promise that resolves when we get the lock
-  let releaseFn: UnlockFn;
+  let releaseFn!: UnlockFn;
   const lock = new Promise<UnlockFn>((resolve) => {
-    releaseFn = resolve;
+    releaseFn = resolve as UnlockFn;
   });
   locks.set(key, lock);
 
@@ -24,6 +24,6 @@ export async function withLock<T>(
     return await fn();
   } finally {
     locks.delete(key);
-    releaseFn!();
+    releaseFn();
   }
 }

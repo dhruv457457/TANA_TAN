@@ -6,6 +6,7 @@ import {
   parseUnits,
   encodeFunctionData,
   erc20Abi,
+  Chain,
 } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
 import { base, mainnet, arbitrum } from "viem/chains";
@@ -27,10 +28,10 @@ function getEnv() {
 
 const EARN_BASE = "https://earn.li.fi";
 
-const CHAIN_CONFIG: Record<number, { chain: typeof base; rpc: string; name: string }> = {
+const CHAIN_CONFIG: Record<number, { chain: Chain; rpc: string; name: string }> = {
   8453: { chain: base, rpc: "https://mainnet.base.org", name: "Base" },
-  1: { chain: mainnet, rpc: "https://eth.llamarpc.com", name: "Ethereum" },
-  42161: { chain: arbitrum, rpc: "https://arb1.arbitrum.io/rpc", name: "Arbitrum" },
+  1: { chain: { ...mainnet, blockExplorers: undefined } as Chain, rpc: "https://eth.llamarpc.com", name: "Ethereum" },
+  42161: { chain: { ...arbitrum, blockExplorers: undefined } as Chain, rpc: "https://arb1.arbitrum.io/rpc", name: "Arbitrum" },
 };
 
 const USDC_BY_CHAIN: Record<number, `0x${string}`> = {
