@@ -14,9 +14,5 @@ export interface ExecutionResult {
         isRedeemable: boolean;
         verifiedByLiFi: boolean;
     };
-    positionAfter?: {
-        balanceUsd: string;
-        verifiedByLiFi: boolean;
-    };
 }
 export declare function executeStrategy(strategyId: string, executorAddress: string, lastTriggeredAt?: Date): Promise<ExecutionResult[]>;

@@ -99,7 +99,10 @@ async function getLiFiQuote(params: {
     const body = await res.text();
     throw new Error(`LiFi Composer quote failed (${res.status}): ${body.slice(0, 300)}`);
   }
-  const quote = await res.json();
+  const quote = await res.json() as {
+    transactionRequest?: { to?: string; data?: string; value?: string };
+    action?: { fromToken?: string };
+  };
 
   if (!quote?.transactionRequest?.to) {
     throw new Error(`LiFi quote missing transactionRequest: ${JSON.stringify(quote).slice(0, 300)}`);
