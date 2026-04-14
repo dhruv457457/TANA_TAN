@@ -2,30 +2,85 @@
 
 > **DeFi Mullet Hackathon #1 submission** · Track 1: Yield Builder + Track 2: AI × Earn
 
-Business in the front: a Twitter-style social feed where DeFi strategists share their vault positions.
-Wild in the back: when an alpha strategist moves funds, followers' positions copy automatically — MetaMask delegations trigger LI.FI Composer, zero clicks from the follower.
+Business in the front: a Twitter-style social feed where DeFi strategists share their vault positions.  
+Wild in the back: when an alpha strategist moves funds, followers' positions copy automatically — driven by LI.FI's powerful APIs with MetaMask delegations for automation.
 
 ---
 
 ## What It Does
 
 1. **Social Feed** — Users post their live vault positions as strategies. Others browse, like, and follow with one click.
-2. **1-Click Copy Trade** — Follower grants a MetaMask ERC-7715 Advanced Permission once. Every time the alpha deposits, TANA's backend relayer auto-copies it on-chain using LI.FI Composer.
-3. **AI Yield Chat** — Type "put 500 USDC in a safe Base vault above 5% APY". Claude parses the intent, LI.FI Earn finds matching vaults, Composer builds the deposit tx, user signs once.
+2. **AI Yield Chat** — Type "put 500 USDC in a safe Base vault above 5% APY". Claude parses the intent, LI.FI Earn finds matching vaults, Composer builds the deposit tx, user signs once.
+3. **1-Click Copy Trade** — Follower grants a MetaMask ERC-7715 Advanced Permission once. TANA's backend relayer uses LI.FI Composer to auto-copy deposits on-chain.
 4. **Portfolio Dashboard** — Live positions with APY, TVL, vault addresses, and one-click withdraw via LI.FI Composer.
 5. **Leaderboard** — Top strategists ranked by followers, with live APY enriched from LI.FI Earn.
 
 ---
 
+## The Core: LI.FI Earn + Composer
+
+This project is built on top of **LI.FI's two APIs** — Earn for data, Composer for transactions. The advanced permissions system (via MetaMask) exists to automate the Composer calls.
+
+### LI.FI Earn API (`earn.li.fi`)
+
+Vault discovery, real-time APY/TVL, portfolio positions — all comes from LI.FI Earn:
+
+```typescript
+// apps/web/lib/lifi.ts
+const { data } = await earnClient.get("/v1/earn/vaults", {
+  params: { chainId: 8453, asset: "USDC", sortBy: "apy", limit: 50 }
+});
+// Returns: vault address, name, protocol, APY (base/reward/total), TVL, chainId
+```
+
+**What we use it for:**
+- AI yield chat vault search
+- Leaderboard APY enrichment (batch-fetched per chain)
+- Portfolio position lookup (`/v1/earn/portfolio/{address}/positions`)
+- Real-time APY display on every strategy card
+
+### LI.FI Composer API (`li.quest`)
+
+The transaction builder — takes any token → any token/vault and returns a ready-to-sign transaction:
+
+```typescript
+// apps/web/lib/lifi.ts
+const quote = await composerClient.get("/v1/quote", {
+  params: {
+    fromChain: "8453",
+    toChain: "8453",
+    fromToken: USDC_ADDRESS,
+    toToken: vaultAddress,  // vault contract = share token
+    fromAmount: "500000000",  // 500 USDC
+    fromAddress: userAddress,
+    toAddress: userAddress,
+    integrator: "tana-tan",
+  }
+});
+// Returns: transactionRequest (to, data, value) — user signs once
+```
+
+**What we use it for:**
+- Manual deposits (one-click from strategy card)
+- AI chat deposits (after Claude picks a vault)
+- Withdrawals (fromToken = vault, toToken = USDC)
+- **Automated copy-trades** — backend calls Composer after redeeming MetaMask permission
+
+### The Key Insight
+
+The vault address from Earn API (`0x1234...`) is used directly as `toToken` in Composer. One address = vault contract = share token. Composer resolves the full multi-step flow (approve → deposit, or swap → bridge → deposit) into a single ready-to-sign transaction.
+
+---
+
 ## MetaMask Advanced Permissions (ERC-7715 + ERC-7710)
 
-This is the core primitive that makes non-custodial copy-trading possible. No paymasters, no ERC-4337 bundlers.
+These permissions enable the **automated** part — they let the backend trigger Composer calls without the user signing every time.
 
 ### How it works
 
 **ERC-7715 — Permission Request (follower side)**
 
-The follower approves a single MetaMask popup that grants a time-limited, amount-limited USDC transfer permission to TANA's backend EOA. This uses the `erc20-token-periodic` permission type — the follower sets a max USDC amount per period and an expiry date. After that, TANA's backend can transfer up to that amount on their behalf, on-chain, without any further wallet interaction.
+The follower approves a single MetaMask popup granting a time-limited, amount-limited USDC transfer permission to TANA's backend:
 
 ```typescript
 // hooks/useCopyStrategy.ts
@@ -44,21 +99,38 @@ const grantedPermissions = await walletClient.requestExecutionPermissions([{
   },
   isAdjustmentAllowed: true,
 }]);
-// context + delegationManager saved to MongoDB via POST /api/delegations
+// permissionContext + delegationManager saved to MongoDB
 ```
 
 **ERC-7710 — Permission Redemption (backend relayer)**
 
-The backend EOA redeems the granted permission using `sendTransactionWithDelegation`. It calls `USDC.transfer(relayerAddress, amount)` on behalf of the follower's smart account — no signature needed from the follower at execution time.
+The backend EOA redeems the permission and then calls LI.FI Composer to deposit on follower's behalf:
 
 ```typescript
 // apps/server/src/executor.ts
+
+// 1. Transfer USDC from follower to relayer (via ERC-7710)
 const txHash = await backendWalletClient.sendTransactionWithDelegation({
   to: USDC_ADDRESS,
   data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [relayer, amountIn] }),
   permissionsContext: delegation.permissionContext,
   delegationManager: delegation.delegationManager,
 });
+
+// 2. Build Composer quote for vault deposit
+const quote = await fetchComposerQuote({
+  fromChainId: chainId,
+  toChainId: chainId,
+  fromTokenAddress: USDC_ADDRESS,
+  toTokenAddress: vaultAddress,
+  fromAmount: amountIn,
+  fromAddress: relayer,
+  toAddress: follower,
+  integrator: "tana-tan",
+});
+
+// 3. Execute deposit on follower's behalf
+await relayer.sendTransaction(quote.transactionRequest);
 ```
 
 **Requirements:** MetaMask Flask 13.5.0+ · User must have a MetaMask Smart Account (ERC-7702 upgraded EOA)
@@ -71,7 +143,7 @@ const txHash = await backendWalletClient.sendTransactionWithDelegation({
 | 2. Save to DB | [`app/api/delegations/route.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/web/app/api/delegations/route.ts) | Stores `permissionContext + delegationManager` in MongoDB |
 | 3. Alpha triggers | [`app/api/strategies/[id]/like/route.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/web/app/api/strategies/%5Bid%5D/like/route.ts) | Sets `strategy.lastTriggeredAt` |
 | 4. Poller detects | [`apps/server/src/poller.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/server/src/poller.ts) | Finds delegations where `lastExecutedAt < lastTriggeredAt` |
-| 5. Execute copy | [`apps/server/src/executor.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/server/src/executor.ts) | `sendTransactionWithDelegation` (ERC-7710) → LI.FI Composer deposit |
+| 5. Execute copy | [`apps/server/src/executor.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/server/src/executor.ts) | ERC-7710 → LI.FI Composer deposit |
 | 6. Revoke | [`hooks/useRevokeDelegation.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/web/hooks/useRevokeDelegation.ts) | Follower can revoke at any time |
 
 ---
@@ -84,18 +156,11 @@ apps/
 └── server/       Node.js backend relayer — automated copy-trade execution
 ```
 
-### LI.FI Integration — Two APIs, Two Roles
-
-| Layer | Base URL | Auth | Role |
-|---|---|---|---|
-| **Earn Data API** | `earn.li.fi` | none | Vault discovery, APY/TVL, portfolio positions |
-| **Composer API** | `li.quest` | API key | Building deposit + withdraw transactions |
-
 ### LI.FI Files
 
 | File | Purpose |
 |---|---|
-| [`apps/web/lib/lifi.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/web/lib/lifi.ts) | Core helpers: `fetchVaultDetail`, `fetchComposerQuote`, `getAllVaults` |
+| [`apps/web/lib/lifi.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/web/lib/lifi.ts) | Core helpers: `fetchVaults`, `fetchVaultDetail`, `fetchPortfolioPositions`, `fetchComposerQuote` |
 | [`app/api/vaults/route.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/web/app/api/vaults/route.ts) | Proxy → `earn.li.fi/v1/earn/vaults` (adds API key + caching) |
 | [`app/api/portfolio/[address]/route.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/web/app/api/portfolio/%5Baddress%5D/route.ts) | Fetches portfolio positions, enriches with vault metadata via per-chain batch lookup |
 | [`app/api/quote/route.ts`](https://github.com/dhruv457457/TANA_TAN/blob/main/apps/web/app/api/quote/route.ts) | Proxy → `li.quest/v1/quote` for deposit transactions |
@@ -112,15 +177,15 @@ Follower clicks "Follow & Auto-Copy"
         │
         ▼
 walletClient.requestExecutionPermissions()     ← ERC-7715 (MetaMask Flask)
-        │   erc20-token-periodic permission for USDC → backend EOA
+    erc20-token-periodic permission for USDC → backend EOA
         ▼
 POST /api/delegations  →  MongoDB
-        │   stores { permissionContext, delegationManager, expiry }
+    stores { permissionContext, delegationManager, expiry }
         │
         │   [Alpha deposits into vault]
         ▼
 Node.js Poller — every 5 min          ←  apps/server/src/poller.ts
-        │   finds delegations where lastExecutedAt < strategy.lastTriggeredAt
+    finds delegations where lastExecutedAt < strategy.lastTriggeredAt
         ▼
 Executor                              ←  apps/server/src/executor.ts
         │
@@ -145,7 +210,7 @@ User: "safe USDC yield on Base above 5%"
         │
         ▼
 POST /api/intent  →  Claude (intent parsing)
-        │   returns { asset, amount, riskTolerance, minApy, chainIds }
+    returns { asset, amount, riskTolerance, minApy, chainIds }
         ▼
 GET earn.li.fi/v1/earn/vaults?chainId=8453
         │   filter + risk-score vaults  ←  apps/web/lib/scorer.ts
@@ -191,9 +256,8 @@ Most yield aggregators are solo experiences. You find a vault, deposit, and hope
 | Layer | Technology |
 |---|---|
 | Frontend | Next.js 14, React, Tailwind CSS, Framer Motion |
+| Yield data & transactions | LI.FI Earn API + LI.FI Composer API |
 | Web3 | wagmi, viem, MetaMask Smart Accounts Kit (ERC-7715 + ERC-7710) |
-| Yield data | LI.FI Earn API (`earn.li.fi`) |
-| Transactions | LI.FI Composer (`li.quest`) |
 | AI | Anthropic Claude — intent parsing |
 | Database | MongoDB (Mongoose) |
 | Backend relayer | Node.js + node-cron (5-min polling) |
@@ -210,4 +274,4 @@ Most yield aggregators are solo experiences. You find a vault, deposit, and hope
 | Deposit (manual + automated copy) | `GET li.quest/v1/quote?fromToken=USDC&toToken={vaultAddr}` |
 | Withdraw | `GET li.quest/v1/quote?fromToken={vaultAddr}&toToken=USDC` |
 
-**The key insight:** `vault.address` from the Earn API is used directly as `toToken` in Composer. One address = vault contract = share token. LI.FI Composer resolves the full multi-step flow (approve → deposit, or swap → bridge → deposit) into a single ready-to-sign transaction. That's the DeFi Mullet.
+**The DeFi Mullet:** Vault address from Earn API = `toToken` in Composer. One address = vault contract = share token. Composer resolves approve → deposit into a single ready-to-sign transaction.
