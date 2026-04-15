@@ -133,7 +133,7 @@ const quote = await fetchComposerQuote({
 await relayer.sendTransaction(quote.transactionRequest);
 ```
 
-**Requirements:** MetaMask Flask 13.5.0+ · User must have a MetaMask Smart Account (ERC-7702 upgraded EOA)
+**Requirements:** MetaMask (Advanced Permissions live on production) · User must have a MetaMask Smart Account (ERC-7702 upgraded EOA)
 
 ### Permission Lifecycle in Code
 
@@ -176,7 +176,7 @@ apps/
 Follower clicks "Follow & Auto-Copy"
         │
         ▼
-walletClient.requestExecutionPermissions()     ← ERC-7715 (MetaMask Flask)
+walletClient.requestExecutionPermissions()     ← ERC-7715 (MetaMask)
     erc20-token-periodic permission for USDC → backend EOA
         ▼
 POST /api/delegations  →  MongoDB

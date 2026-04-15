@@ -29,13 +29,13 @@ function buildName(v: any): string {
 }
 
 // Map LI.FI NormalizedVault schema → our Vault type
-// LI.FI APY values are percentages (5.4 = 5.4%). Store as fractions (0.054) internally.
+// LI.FI APY values are ALWAYS percentages (3.77 = 3.77%). Store as fractions (0.0377) internally.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mapVault(v: any): Vault {
-  // All values > 0.5 are already percentages — divide by 100
+  // API always returns percentages — always divide by 100
   const toFraction = (n: number | null | undefined): number => {
     if (n == null || isNaN(n)) return 0;
-    return n > 0.5 ? n / 100 : n;
+    return n / 100;
   };
 
   return {

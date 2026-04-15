@@ -15,7 +15,7 @@ const TANA_AUTO_DEPOSIT = (process.env.NEXT_PUBLIC_TANA_AUTO_DEPOSIT ?? "") as `
 
 export type CopyStatus =
   | "idle"
-  | "requesting"   // MetaMask Flask permission dialog
+  | "requesting"   // MetaMask permission dialog (ERC-7715)
   | "saving"       // POST to /api/delegations
   | "done"
   | "error";
@@ -55,7 +55,7 @@ export function useCopyStrategy() {
         throw new Error("NEXT_PUBLIC_TANA_AUTO_DEPOSIT not configured");
       }
 
-      // Build ERC-7715 wallet client using MetaMask Flask
+      // Build ERC-7715 wallet client (Advanced Permissions — production MetaMask)
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const ethereum = (window as any).ethereum;
       if (!ethereum) throw new Error("MetaMask not found");

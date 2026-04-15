@@ -27,13 +27,10 @@ const CHAIN_ID_TO_NETWORK: Record<number, string> = {
   5000: "Mantle",
 };
 
-const earnClient = axios.create({ 
-  baseURL: EARN_BASE, 
+// Earn Data API does NOT require authentication — no API key needed
+const earnClient = axios.create({
+  baseURL: EARN_BASE,
   timeout: 10000,
-});
-earnClient.interceptors.request.use((config) => {
-  config.headers["x-lifi-api-key"] = getLifiApiKey();
-  return config;
 });
 
 const composerClient = axios.create({ 

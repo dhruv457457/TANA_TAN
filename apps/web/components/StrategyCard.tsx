@@ -426,7 +426,7 @@ export function StrategyCard({ strategy, index, onAuthorClick }: Props) {
 
             {showAmountInput && !isDone && (
               <p className="text-[10px] text-[#AAAAAA] text-center">
-                Executes automatically when this alpha moves · Requires MetaMask Flask
+                Executes automatically when this alpha moves · Requires MetaMask Smart Account
               </p>
             )}
           </div>

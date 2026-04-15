@@ -42,11 +42,11 @@ const USDC_BY_CHAIN: Record<number, `0x${string}`> = {
 
 const earnClient = axios.create({ baseURL: EARN_BASE, timeout: 10000 });
 
-async function fetchVaultDetail(chainId: number, address: string, lifiApiKey: string) {
+async function fetchVaultDetail(chainId: number, address: string) {
   try {
+    // Earn Data API does not require authentication
     const { data } = await earnClient.get("/v1/earn/vaults", {
       params: { chainId },
-      headers: lifiApiKey ? { "x-lifi-api-key": lifiApiKey } : {},
     });
     const vaults = Array.isArray(data) ? data : (data?.data ?? []);
     if (!Array.isArray(vaults) || !vaults.length) {
@@ -180,7 +180,7 @@ export async function executeStrategy(
       return [];
     }
 
-    const { BACKEND_PK, LIFI_API_KEY } = getEnv();
+    const { BACKEND_PK, LIFI_API_KEY } = getEnv(); // LIFI_API_KEY used for Composer only
     const backendAccount = privateKeyToAccount(BACKEND_PK);
     const chainId = strategy.chainId as number;
     const chainConf = CHAIN_CONFIG[chainId];
@@ -206,18 +206,20 @@ export async function executeStrategy(
     let vaultDetail: Record<string, unknown> = {};
     try {
       console.log(`[Executor] Fetching vault detail for ${strategy.vaultAddress} on chain ${chainId}`);
-      vaultDetail = await fetchVaultDetail(chainId, strategy.vaultAddress as string, LIFI_API_KEY);
+      vaultDetail = await fetchVaultDetail(chainId, strategy.vaultAddress as string);
       console.log(`[Executor] Vault detail fetched: ${JSON.stringify(vaultDetail).slice(0, 200)}`);
     } catch (err) {
       console.warn(`[Executor] Could not fetch LI.FI vault detail: ${err instanceof Error ? err.message : err}`);
     }
 
     const vaultAnalytics = vaultDetail?.analytics as
-      | { apy?: { total?: number }; tvl?: { usd?: number } }
+      | { apy?: { total?: number }; tvl?: { usd?: string | number } }
       | undefined;
+    // LI.FI always returns APY as percentages (3.77 = 3.77%) — always divide by 100
     const rawApy = vaultAnalytics?.apy?.total ?? (strategy.apy as number) ?? 0;
-    const liveApy = rawApy > 1 ? rawApy / 100 : rawApy;
-    const liveTvl = vaultAnalytics?.tvl?.usd ?? (strategy.tvlUsd as number) ?? 0;
+    const liveApy = rawApy / 100;
+    // LI.FI returns TVL as a string (e.g. "270595698") — parse it
+    const liveTvl = parseFloat(String(vaultAnalytics?.tvl?.usd ?? (strategy.tvlUsd as number) ?? 0));
 
     await Strategy.findByIdAndUpdate(strategyId, { apy: liveApy, tvlUsd: liveTvl });
 
